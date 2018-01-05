@@ -1,0 +1,73 @@
+<?php
+/**
+ * @file
+ * Dataset viewer tests
+ */
+define('TEST_ORGANISATION_NAME', 'Brand CBR');
+
+class dfmpDatasetViewerTester extends DrupalWebTestCase {
+//  protected $privileged_user;
+  public static function getInfo() {
+    return array(
+      'name' => 'Dataset viewer test',
+      'description' => 'Ensure that files owner properly recorded.',
+      'group' => 'DFMP',
+    );
+  }
+  public function setUp() {
+    $this->profile = 'dfmp';
+
+    parent::setUp();
+
+    drupal_flush_all_caches();
+  }
+
+  public function testAssetCkanActions() {
+    // Create test user
+    $user = $this->drupalCreateUser(array('access content', 'create page content', 'access_file_uploading_page'));
+    $this->drupalLogin($user);
+    $user = user_load($user->uid);
+    $user_api_key = $user->field_user_api_key[LANGUAGE_NONE][0]['value'];
+
+    // Check that TEST organisation exists
+    $org_list = CkanApi::getInstance()->action('all_organization_list');
+    $gov_org_exists = FALSE;
+    foreach ($org_list as $val) {
+      if ($val[1] == TEST_ORGANISATION_NAME) {
+        $gov_org_exists = TRUE;
+        break;
+      }
+    }
+    // Create TEST organisation if it does not exist
+    if (!$gov_org_exists) {
+      $org_list = CkanApi::getInstance()->action('create_organization', array('data' => array('name' => TEST_ORGANISATION_NAME)));
+    }
+
+    // posts 1 asset to CKAN
+    $options = array(
+      'data' => array(
+        'name' => 'image.jpg',
+        'size' => 1983,
+        'type' => 'image/jpg',
+        'url' => '/sites/default/files/image.jpg',
+        'thumbnailUrl' => 'sites/default/files/thumbnail/image.jpg',
+        'license' => 'notspecified',
+      ),
+      'api_key' => $user_api_key,
+    );
+
+    CkanApi::getInstance()->action('user_add_asset', $options);
+    CkanApi::getInstance()->action('organization_add_user', array('data' => array('organization' => TEST_ORGANISATION_NAME, 'user' => $user_api_key)));
+    // Get uploaded assets
+    $dataset = CkanApi::getInstance()->action('user_get_assets', array('api_key' => $user_api_key));
+    //Check owner
+    $this->assertTrue($dataset[0]->metadata->owner_name == TEST_ORGANISATION_NAME, t('After adding user to organisation, organisation is owner of file'));
+    //DELETE test user
+    $deleteUser = CkanApi::getInstance()->action('delete_user_test', array(
+        'data' => array(
+            'user' => $user_api_key,
+        )
+    ));
+  }
+}
+

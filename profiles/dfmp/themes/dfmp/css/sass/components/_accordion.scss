@@ -1,0 +1,143 @@
+//
+// Accordion.
+// --------------------------------------------------
+
+
+// Parent container.
+.accordion {
+  margin-bottom: $baseLineHeight;
+}
+
+// Group == heading + body.
+.accordion-group {
+  margin-bottom: 2px;
+  border: 1px solid #e5e5e5;
+  @include border-radius(4px);
+}
+.accordion-heading {
+  border-bottom: 0;
+}
+.accordion-heading .accordion-toggle {
+  display: block;
+  padding: 8px 15px;
+}
+
+// General toggle styles.
+.accordion-toggle {
+  cursor: pointer;
+}
+
+// Inner needs the styles because you can't animate properly with any styles on the element.
+.accordion-inner {
+  padding: 9px 15px;
+  border-top: 1px solid #e5e5e5;
+
+}
+
+/* DFMP accordion */
+$activeAccordionBg: #9f177a;
+$accordionPLusBg: #ede033;
+$accordionLeftBorder: #ede033;
+$accordionDefaultBorder: #dcdddf;
+$accordionDarkBorder: #e1d20e;
+
+#accordion {
+  margin-top: 30px;
+  font-family: "Open Sans";
+  & .field_accodrion {
+    & .field-item {
+      &:last-child {
+        border-bottom: 1px solid $accordionDefaultBorder;
+      }
+    }
+  }
+  & .field-collection-item-field-accodrion {
+    position: relative;
+    &:after {
+      display: block;
+      width: 52px;
+      height: 49px;
+      content: "";
+      position: absolute;
+      top: 0px;
+      right: 0px;
+      background: $accordionPLusBg;
+      border: 1px solid $accordionDarkBorder;
+      visibility: visible;
+      transition: background 200ms linear;
+    }
+    & .field_accordion_title {
+      position: relative;
+      max-height: 50px;
+      font-weight: 600;
+      font-size: 20px;
+      line-height: 20px;
+      border: 1px solid $accordionDefaultBorder;
+      border-left: 5px solid $accordionLeftBorder;
+      border-bottom: 0px;
+      padding-left: 15px;
+      padding-top: 15px;
+      padding-bottom: 15px;
+      transition: background 200ms linear;
+      z-index:100;
+      &:after {
+        position: absolute;
+        content: "";
+        display: block;
+        background: #000;
+        width: 2px;
+        height: 20px;
+        right: 0px;
+        top: 0px;
+        z-index: 99;
+        margin: 15px 24px 0 0;
+      }
+      &:before {
+        position: absolute;
+        content: "";
+        display: block;
+        background: #000;
+        width: 20px;
+        height: 2px;
+        right: 0px;
+        top: 0px;
+        z-index: 99;
+        margin: 24px 15px 0 0;
+      }
+      &:hover {
+        background: $accordionPLusBg;
+        z-index: 98;
+      }
+    }
+    &.active {
+      & .field_accordion_title {
+        background: $activeAccordionBg;
+        color: #fff;
+        border: 1px solid $activeAccordionBg;
+        padding-left: 19px;
+        &:after {
+          display: none;
+        }
+        &:before {
+          background: #fff;
+        }
+      }
+      &:after {
+        background: $activeAccordionBg;
+        border: 0px;
+      }
+    }
+    & .field_accordion_body {
+      border-left: 1px solid $accordionDefaultBorder;
+      border-right: 1px solid $accordionDefaultBorder;
+      border-top: 1px solid $accordionDefaultBorder;
+      padding: 15px;
+      & p {
+        /*margin: 0;*/
+      }
+      & h3 {
+        margin: 20px 0 !important;
+      }
+    }
+  }
+}

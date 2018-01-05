@@ -1,0 +1,697 @@
+<?php
+/**
+ * @file
+ * Code for the dfmp_user feature.
+ */
+
+include_once 'dfmp_user.features.inc';
+
+/**
+ * Implements hook_menu().
+ */
+function dfmp_user_menu() {
+  $items['promotion/%'] = array(
+    'title' => 'Promotion request',
+    'page callback' => 'dfmp_user_get_request_promotion',
+    'page arguments' => array(1),
+    'access callback' => 'user_is_logged_in',
+  );
+
+  $items['promotion'] = array(
+    'title' => 'Promotion request',
+    'page callback' => 'dfmp_user_action_promotion',
+    'page arguments' => array(1),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer promotion request'),
+  );
+
+  $items['admin/settings/organizations'] = array(
+    'title' => 'Settings organizations',
+    'description' => 'Settings page organizations',
+    'page callback' => 'dfmp_user_organizations_callback',
+    'access arguments' => array('administer organizations settings'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['admin/settings/user-organizations'] = array(
+    'title' => 'Settings user organizations',
+    'description' => 'Settings page user organizations',
+    'page callback' => 'dfmp_user_organizations_user_callback',
+    'access arguments' => array('administer organizations settings'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['admin/settings/user-organizations/ajax'] = array(
+    'title' => 'Update organizations',
+    'page callback' => 'dfmp_user_organizations_user_update',
+    'page arguments' => array(3),
+    'access arguments' => array('access content'),
+    'delivery callback' => 'ajax_deliver',
+    'theme callback' => 'ajax_base_page_theme',
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['admin/settings/manage_user_access'] = array(
+      'title' => 'Manage user access',
+      'description' => 'View users from Drupal and CKAN',
+      'page callback' => 'dfmp_user_manage_user_drupal_ckan_callback',
+      'access arguments' => array('administer organizations settings'),
+      'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['admin/settings/manage_user_access/drupal_ckan'] = array(
+      'title' => 'Drupal & CKAN',
+      'type' => MENU_LOCAL_TASK,
+      'page callback' => 'dfmp_user_manage_user_drupal_ckan_callback',
+      'access arguments' => array('administer organizations settings'),
+      'weight' => 1,
+  );
+
+  $items['admin/settings/manage_user_access/ckan'] = array(
+      'title' => 'CKAN',
+      'type' => MENU_LOCAL_TASK,
+      'page callback' => 'dfmp_user_manage_user_ckan_callback',
+      'access callback' => TRUE,
+//      'access arguments' => array('administer organizations settings'),
+      'weight' => 2,
+  );
+
+
+  $items['dfmp/dataset/keywords'] = array(
+    'title' => 'Dataset keywords',
+    'page callback' => 'dfmp_user_dataset_keywords',
+    'access arguments' => array('access dataset keywords'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['user/%user/create_user'] = array(
+    'title' => t('Create new user'),
+    'page callback' => 'dfmp_user_create_user_form',
+    'access arguments' => array('create users'),
+    'weight' => 10,
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['user/%user/permissions'] = array(
+    'title' => t('Permissions'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('dfmp_user_act_gov_permissions_form'),
+    'access callback' => 'dfmp_user_act_gov_permissions_form_access',
+    'weight' => 10,
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['promotion-update'] = array(
+    'title' => 'Promotion request',
+    'page callback' => 'dfmp_user_act_gov_permissions_ajax',
+    'access callback' => 'dfmp_user_act_gov_permissions_form_access',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_menu_alter
+ */
+function dfmp_user_menu_alter(&$items) {
+  $items['user/%user/edit']['type'] = MENU_CALLBACK;
+}
+
+/**
+ *  Send request to access to act data
+ */
+function dfmp_user_act_gov_permissions_form($form, &$form_state) {
+  $form['#attached']['js'][] = drupal_get_path('module', 'dfmp_user') . '/js/dfmp_user_org.js';
+  $form['#attached']['js'][] = drupal_get_path('theme', 'dfmp') . '/js/bootstrap-toggle.js';
+  $form['#attached']['css'][] = drupal_get_path('theme', 'dfmp') . '/css/stylesheets/bootstrap-toggle.css';
+
+  $form['act_request'] = array(
+    '#type' => 'checkbox',
+    '#default_value' => 0,
+    '#attributes' => array('data-toggle' => 'toggle'),
+  );
+
+  return $form;
+}
+
+/**
+ * Check access for ACT Gov permissions page
+ */
+function dfmp_user_act_gov_permissions_form_access() {
+  global $user;
+
+  if (strpos($user->mail, '@act.gov.au') !== FALSE) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+/**
+ * Page callback for /promotion/%.
+ */
+function dfmp_user_get_request_promotion($arg) {
+  global $user;
+  $uid = $user->uid;
+  $path = $_SERVER['HTTP_REFERER'];
+  $permission = "access $arg asset repositories";
+
+  if (isset($arg)) {
+    db_merge('dfmp_user_request_promotion')
+        ->key(array('uid' => $uid, 'territory' => $arg))
+        ->fields(array(
+          'name_permission' => $permission,
+        ))
+        ->execute();
+    drupal_set_message(t('Thank you, request promotion has been sent!'));
+    drupal_goto($path);
+  }
+  else {
+    drupal_not_found();
+  }
+
+}
+
+/**
+ * Page callback for /user/%user/create_user
+ */
+function dfmp_user_create_user_form(){
+  //only user with permissions 'administer users' can get 'user_register_form'
+  global $user;
+  $original_user = $user;
+  $user = user_load ( 1 );
+  $form = drupal_get_form ( "user_register_form" );
+  $user = $original_user;
+
+  $form['account']['notify']['#attributes']['checked'] = TRUE;
+  hide($form['account']['status']);
+  hide($form['account']['roles']);
+
+  return drupal_render($form);
+}
+
+/**
+ * Callback to add or remove act organisation
+ */
+function dfmp_user_act_gov_permissions_ajax() {
+  global $user;
+  $user = user_load($user->uid);
+
+  if (isset($_GET['action']) && $_GET['action'] == 1) {
+    try{
+      CkanApi::getInstance()->action('organization_add_user', array('data' =>
+        array(
+          'only_update' => TRUE,
+          'role' => 'member',
+          'organization' => variable_get('ckan_act_organisation', 'act'),
+          'user' => $user->field_user_api_key['und'][0]['value'],
+        )));
+    } catch (Exception $e) {
+      drupal_set_message(t('Error.'));
+    }
+  }
+  elseif (isset($_GET['action']) && $_GET['action'] == 0) {
+    try{
+      CkanApi::getInstance()->action('organization_remove_user', array('data' =>
+        array(
+          'organization' => variable_get('ckan_act_organisation', 'act'),
+          'user' => $user->field_user_api_key['und'][0]['value'],
+      )));
+    } catch (Exception $e) {
+      drupal_set_message(t('Error.'));
+    }
+  }
+  die();
+}
+
+function dfmp_user_action_promotion() {
+  $q = drupal_get_query_parameters();
+  $path = $_SERVER['HTTP_REFERER'];
+
+  if ($q['action'] == 1) {
+    $user = user_load($q['uid']);
+    $role = user_role_load_by_name('Territory Content manager');
+    $user->roles = $user->roles + array($role->rid => $role->name);
+    user_save($user);
+
+    try{
+      CkanApi::getInstance()->action('organization_add_user', array('data' =>
+        array(
+          'only_update' => TRUE,
+          'role' => 'member',
+          'organization' => $q['territory'],
+          'user' => $user->field_user_api_key['und'][0]['value'],
+        )));
+    } catch (Exception $e) {
+      drupal_set_message(t('Error.'));
+    }
+    drupal_set_message(t('Request promotion confirmed'));
+  }
+  else {
+    drupal_set_message(t('Request promotion canceled'));
+  }
+
+  db_delete('dfmp_user_request_promotion')
+      ->condition('uid', $q['uid'])
+      ->condition('territory', $q['territory'])
+      ->execute();
+
+  drupal_goto($path);
+}
+
+/**
+ * Implements hook_permission().
+ */
+function dfmp_user_permission() {
+  $permission = array();
+  $permission['access dataset keywords'] = array('title' => t('Access dataset keywords'));
+  $permission['administer promotion request'] = array('title' => t('Administer promotion request'));
+  $permission['administer organizations settings'] = array('title' => t('Administer organizations settings'));
+  $permission['dataset lists view'] = array('title' => t('Viewing of dataset lists'));
+
+  $vid = taxonomy_vocabulary_machine_name_load('territory');
+  if (isset($vid->vid)) {
+    $territory = taxonomy_get_tree($vid->vid, 0, NULL, TRUE);
+    foreach ($territory as $row) {
+      if (isset($row->name)) {
+        $permission['access ' . $row->name . ' asset repositories'] = array(
+          'title' => t('Access ' . $row->name . ' asset repositories'),
+        );
+      }
+    }
+  }
+  return $permission;
+}
+
+/**
+ * Implements hook_ctools_plugin_directory().
+ */
+function dfmp_user_ctools_plugin_directory($owner, $plugin_type) {
+  if ($owner == 'ctools') {
+    return 'plugins/' . $plugin_type;
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function dfmp_user_theme() {
+  return array(
+    'dfmp_user_request_promotion' => array(
+      'path' => drupal_get_path('module', 'dfmp_user') . '/theme',
+      'template' => 'dfmp-user-request-promotion',
+    ),
+    'dfmp_user_act_gov_permissions_form' => array(
+      'path' => drupal_get_path('module', 'dfmp_user') . '/theme',
+      'template' => 'dfmp-user-act-gov-permissions-form',
+      'render element' => 'form',
+    )
+  );
+}
+
+/**
+ * @return all promotion
+ */
+function dfmp_user_get_promotion($uid = NULL) {
+  $result = db_select('dfmp_user_request_promotion', 'durp');
+  $result->fields('durp');
+  if ($uid) {
+    $result->condition('durp.uid', (int)$uid);
+  }
+  $result = $result->execute()->fetchAll();
+
+  return $result;
+}
+
+/**
+ * Implements hook_user_presave().
+ */
+function dfmp_user_user_presave(&$edit, $account, $category) {
+
+  //change to lowwer case only for new users
+  if (isset($edit['name'])) {
+    $edit['name'] = drupal_strtolower($edit['name']);
+  }
+
+  // Create CKAN user only when Drupal user is created
+  if ((!isset($account->field_user_api_key[LANGUAGE_NONE][0]['value']) || !$account->field_user_api_key[LANGUAGE_NONE][0]['value']) && (!isset($edit['field_user_api_key'][LANGUAGE_NONE][0]['value']) || !$edit['field_user_api_key'][LANGUAGE_NONE][0]['value'])) {
+    $options = array(
+      'data' => array(
+        'password' => md5($edit['pass']),
+        'name' => $edit['name'],
+        'email' => $edit['mail'],
+        'title' => (isset($edit['field_user_dataset_title'][LANGUAGE_NONE][0]['value'])) ? $edit['field_user_dataset_title'][LANGUAGE_NONE][0]['value'] : '',
+        'description' => (isset($edit['field_user_dataset_description'][LANGUAGE_NONE][0]['value'])) ? $edit['field_user_dataset_description'][LANGUAGE_NONE][0]['value'] : '',
+        'tags' => (isset($edit['field_user_dataset_keywords'][LANGUAGE_NONE][0]['value'])) ? $edit['field_user_dataset_keywords'][LANGUAGE_NONE][0]['value'] : '',
+      ),
+    );
+    try{
+      $user_request = CkanApi::getInstance()->action( 'user_create_with_dataset', $options);
+    } catch (Exception $e) {
+
+    }
+
+    $edit['field_user_api_key'][LANGUAGE_NONE][0]['value'] = $user_request->apikey;
+    $edit['field_user_dataset_title'][LANGUAGE_NONE][0]['value'] = $user_request->dataset_name;
+  }
+}
+
+
+/**
+ * Implements hook_user_update().
+ */
+function dfmp_user_user_update(&$edit, $account, $category) {
+  if (isset($edit['field_user_dataset_title'][LANGUAGE_NONE][0]['value']) || isset($edit['field_user_dataset_description'][LANGUAGE_NONE][0]['value']) || isset($edit['field_user_dataset_keywords'][LANGUAGE_NONE][0]['value'])
+  ) {
+
+    $options = array(
+      'data' => array(
+        'title' => $edit['field_user_dataset_title'][LANGUAGE_NONE][0]['value'],
+        'description' => $edit['field_user_dataset_description'][LANGUAGE_NONE][0]['value'],
+        'author_email' => $edit['mail'],
+        'author' => $edit['name'],
+        'maintainer' => $edit['name'],
+        'tags' => $edit['field_user_dataset_keywords'][LANGUAGE_NONE][0]['value']
+      ),
+      'api_key' => $edit['field_user_api_key'][LANGUAGE_NONE][0]['value']
+    );
+
+    try{
+      $user_request = CkanApi::getInstance()->action('user_update_dataset', $options);
+    } catch (Exception $e) {
+
+    }
+  }
+}
+
+/**
+ * Validation of password format
+ */
+function dfmp_user_form_alter(&$form, &$form_state, $form_id) {
+  if (in_array($form_id, array('user_register_form', 'user_profile_form'))) {
+    $form['#validate'][] = 'dfmp_user_pass_validator';
+    dfmp_user_set_autocomplete_keywords($form);
+  }
+
+  if ($form_id == 'user_profile_form') {
+    dfmp_user_set_autocomplete_keywords($form);
+  }
+}
+
+function dfmp_user_pass_validator($form, $form_state) {
+  $vg = variable_get('dfmp_user_max_pass_lenght', 6);
+  if (isset($form['account']['pass']['#required']) && !$form['account']['pass']['#required'] && empty($form_state['values']['pass'])) {
+    return;
+  }
+  if ((mb_strlen($form_state['values']['pass'], 'utf-8')) < $vg) {
+    form_set_error('pass[pass1]', t('The password should contain at least !num characters', array('!num' => $vg)));
+  }
+}
+
+/**
+ * Implements hook_form().
+ * Admin form to configurable organizations.
+ */
+function dfmp_user_organizations_form($form, &$form_state) {
+
+  $form['markup'] = array('#markup' => '<h3>Add new organizations</h3>');
+
+  $form['organizations'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Organizations'),
+    '#maxlength' => 128,
+    '#required' => TRUE,
+  );
+
+  $form['#submit'][] = 'dfmp_user_organizations_form_submit';
+  return system_settings_form($form);
+}
+
+/**
+ * Callback for organizations page.
+ */
+function dfmp_user_organizations_callback() {
+  $output = '';
+  $header = array('№', 'Name organizations');
+  $organization_list = __dfmp_user_organizations_list();
+
+  $organizations = array();
+  foreach ($organization_list as $org) {
+      $organizations[] = array($org[0], $org[1]);
+    }
+
+  $table = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $organizations,
+    '#empty' => t('Your table is empty'),
+  );
+
+  $form  = drupal_get_form('dfmp_user_organizations_form');
+  $output .= render($table);
+  $output .= render($form);
+
+  return $output;
+}
+
+/**
+ * @return array organizations list.
+ */
+function __dfmp_user_organizations_list() {
+  try {
+    $organizations_list = CkanApi::getInstance()->action('all_organization_list', array());
+  } catch (ckan_api_CKANSideError $e) {
+    $organizations_list = array();
+  }
+
+  return $organizations_list;
+}
+
+
+/**
+ * @return array user list.
+ */
+function __dfmp_user_organizations_user_list() {
+  try {
+    $user_list = CkanApi::getInstance()->action('all_user_list', array('data' => array()));
+  } catch (ckan_api_CKANSideError $e) {
+    $user_list = array();
+  }
+
+  return $user_list;
+}
+
+/**
+ * Submit callback
+ */
+function dfmp_user_organizations_form_submit($form, &$form_state) {
+  $name = $form_state['values']['organizations'];
+  try {
+    CkanApi::getInstance()->action('create_organization', array('data' => array('name' => $name)));
+  } catch (ckan_api_CKANSideError $e) {
+    drupal_set_message($e);
+  }
+  drupal_set_message(t('Create organization is ready.'));
+}
+
+/**
+ * admin/settings/user-organizations callback
+ */
+function dfmp_user_organizations_user_callback() {
+
+  $user_list = __dfmp_user_organizations_user_list();
+  $organization = __dfmp_user_organizations_list();
+  drupal_add_js(drupal_get_path('module', 'dfmp_user') . '/js/dfmp_user_org.js');
+
+  $users = array();
+  foreach ($user_list as $user) {
+    $list_organization = '<select>' . '<option  value="">--None--</option>';
+    foreach ($organization as $row) {
+      $list_organization .= ($row[1] == $user->organization) ? '<option selected value="' . $row[2] . '"' . '>' . $row[1] . '</option>' : '<option value="' . $row[2] . '"' . '>' . $row[1] . '</option>';
+    }
+    $list_organization .= '</select>';
+
+    $users[] = array(
+      $user->name,
+      $list_organization,
+     '<input data-id="' . $user->api_key . '" data-org="' . $user->organization . '" type="submit" value="Update user" class="form-submit">'
+    );
+  }
+
+  $header = array('User', 'Organization', 'Update');
+  $table = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $users,
+    '#empty' => t('Your table is empty'),
+    '#attributes' => array('id' => 'table_org'),
+  );
+
+  return $table;
+
+}
+
+/**
+ * admin/settings/user-drupal-ckan callback
+ */
+function dfmp_user_manage_user_drupal_ckan_callback() {
+  global $user;
+  $users_list_ckan = __dfmp_user_organizations_user_list();
+  $users_list_drupal = entity_load('user');
+  $arr_key_name_drupal = array();
+  $arr_key_name_ckan = array();
+  foreach ($users_list_drupal as $user_drupal) {
+    foreach ($user_drupal as $key => $val) {
+      if (substr($key, 0, 4) == 'name')
+        $arr_key_name_drupal[$user_drupal->uid] = $val;
+    }
+  }
+  foreach ($users_list_ckan as $user_ckan) {
+    foreach ($user_ckan as $key => $val) {
+      if (substr($key, 0, 4) == 'name')
+        $arr_key_name_ckan[] = $val;
+    }
+  }
+  $arr_only_drupal_ckan = array_intersect($arr_key_name_drupal, $arr_key_name_ckan);
+
+  // Drupal & CKAN
+  $users = array();
+  foreach ($arr_only_drupal_ckan as $k => $v) {
+    $users[] = array(
+      $v,
+        in_array('Territory Content manager', $user->roles) ? "<a href='/user/$k/edit?destination=admin/people' class='form-submit'>edit</a>" : 'You are not authorized to access this link',
+        in_array('Data administrator', $user->roles) ? '<a href="/data/user/edit/' . $v . '" class="form-submit">edit</a>' : 'You are not authorized to access this link',
+    );
+  }
+
+  $header = array('User', 'Edit Drupal', 'Edit CKAN');
+  $table = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $users,
+    '#empty' => t('Your table is empty'),
+    '#attributes' => array('id' => 'table_org'),
+  );
+
+  return $table;
+
+}
+
+/**
+ * admin/settings/user-ckan callback
+ */
+function dfmp_user_manage_user_ckan_callback() {
+  global $user;
+  $users_list_ckan = __dfmp_user_organizations_user_list();
+  $users_list_drupal = entity_load('user');
+  $arr_key_name_drupal = array();
+  $arr_key_name_ckan = array();
+  foreach ($users_list_drupal as $user_drupal) {
+    foreach ($user_drupal as $key => $val) {
+      if (substr($key, 0, 4) == 'name')
+        $arr_key_name_drupal[$user_drupal->uid] = $val;
+    }
+  }
+  foreach ($users_list_ckan as $user_ckan) {
+    foreach ($user_ckan as $key => $val) {
+      if (substr($key, 0, 4) == 'name')
+        $arr_key_name_ckan[] = $val;
+    }
+  }
+  $arr_only_ckan = array_diff($arr_key_name_ckan, $arr_key_name_drupal);
+
+  // Only CKAN
+  $users = array();
+  foreach ($arr_only_ckan as $k => $v) {
+    $users[] = array(
+      $v,
+      in_array('Data administrator', $user->roles) ? '<a href="/data/user/edit/' . $v . '" class="form-submit">edit</a>' : 'You are not authorized to access this link',
+    );
+  }
+
+  $header = array('User', 'Edit CKAN');
+  $table = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $users,
+    '#empty' => t('Your table is empty'),
+    '#attributes' => array('id' => 'table_org'),
+  );
+
+  return $table;
+
+}
+
+/**
+ * Ajax callback to update user org.
+ */
+function dfmp_user_organizations_user_update($ajax) {
+  if ($ajax == 'ajax' || isset($_POST['userUpdate'])) {
+    try {
+      CkanApi::getInstance()->action('organization_add_user', array('data' =>
+          array(
+            'only_update' => TRUE,
+            'organization' => $_POST['userUpdate']['org'],
+            'user' => $_POST['userUpdate']['id']
+          )));
+    } catch (ckan_api_CKANSideError $e) {
+      drupal_set_message($e);
+    }
+  }
+  else{
+    drupal_not_found();
+  }
+}
+
+/**
+ * Autocomplete callback
+ */
+function dfmp_user_dataset_keywords($query = 'social') {
+  $matches = __dfmp_user_dataset_keywords_list($query);
+  drupal_json_output($matches);
+}
+
+
+/**
+ * @return keywords list.
+ */
+function __dfmp_user_dataset_keywords_list($query) {
+  try {
+    $keywords_list = CkanApi::getInstance()->action('dfmp_tags', array('data' => array('query' => strtolower($query))));
+  } catch (ckan_api_CKANSideError $e) {
+    $keywords_list = array();
+  }
+
+  return $keywords_list;
+}
+
+function dfmp_user_set_autocomplete_keywords(&$form) {
+  $form['field_user_dataset_keywords'][LANGUAGE_NONE][0]['value']['#type'] = 'autocomplete_deluxe';
+  $form['field_user_dataset_keywords'][LANGUAGE_NONE][0]['value']['#multiple'] = TRUE;
+  $form['field_user_dataset_keywords'][LANGUAGE_NONE][0]['value']['#autocomplete_deluxe_path'] = url('dfmp/dataset/keywords', array('absolute' => TRUE));
+}
+
+/**
+ * Implements hook_user_login().
+ */
+function dfmp_user_user_login(&$edit, $account) {
+  global $user;
+  // Redirect user to file_uploader page with enabled tutorial after the login if prev access time == 0, i.e. after first login.
+  if (!$user->access && arg(1) != 'reset') {
+    $_GET['destination'] = '/dfmp/file_uploader#tutorial';
+  }
+}
+
+/**
+ * Implements hook_cron().
+ */
+function dfmp_user_cron() {
+  // every day by default
+  $interval = variable_get('dfmp_flickr_update_interval', 60 * 60 * 24);
+  $now = time();
+  
+  if ($now >= variable_get('dfmp_flickr_update_next_execution', 0)) {
+    CkanApi::getInstance()->action('dfmp_flickr_update', array('data'=>array('action'=>'update_all')));
+    watchdog('dfmp_flickr_update', 'Updated');
+    variable_set('dfmp_flickr_update_next_execution', $now + $interval);
+  }
+}

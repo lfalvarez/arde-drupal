@@ -1,0 +1,7 @@
+#uploader-wrapper{
+  .uploader-btn-primary.visible-popover {
+    box-shadow: rgb(255,255,255) 0 0 160px 151px;
+    transition: box-shadow 0.1s;
+    z-index: 10;
+  }
+}

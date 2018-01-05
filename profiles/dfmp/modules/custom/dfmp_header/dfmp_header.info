@@ -1,0 +1,12 @@
+name = DFMP header
+description = Provides a header
+core = 7.x
+package = DFMP
+version = 7.x-1.03
+project = dfmp_header
+dependencies[] = ctools
+dependencies[] = panels_mini
+features[ctools][] = panels_mini:panels_default:1
+features[features_api][] = api:2
+features[panels_mini][] = dfmp_header
+project path = profiles\dfmp\modules\custom

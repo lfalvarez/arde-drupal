@@ -1,0 +1,5 @@
+name = DFMP image rotator
+description = DFMP image rotator
+core = 7.x
+package = DFMP
+version = 7.x-1.0

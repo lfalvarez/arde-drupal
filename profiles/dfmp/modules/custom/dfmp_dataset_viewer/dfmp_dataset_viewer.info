@@ -1,0 +1,16 @@
+name = DFMP Dataset Viewer
+core = 7.x
+package = DFMP
+version = 7.x-1.0
+project = dfmp_dataset_viewer
+dependencies[] = ctools
+dependencies[] = ckan_api
+dependencies[] = strongarm
+features[ctools][] = strongarm:strongarm:1
+features[features_api][] = api:2
+features[variable][] = mediaelement_sitewide
+files[] = dfmp_dataset_viewer.test
+files[] = dfmp_dataset_viewer_browse.test
+files[] = dfmp_dataset_viewer_gallery.test
+mtime = 1424954168
+project path = profiles/dfmp/modules/custom

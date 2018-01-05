@@ -1,0 +1,257 @@
+<?php
+/**
+ * @file
+ * File uploader tests
+ */
+
+class dfmpFileUploaderTester extends DrupalWebTestCase {
+//  protected $privileged_user;
+  public static function getInfo() {
+    return array(
+      'name' => 'Uploader test',
+      'description' => 'Ensure that the simpletest_example content type provided functions properly.',
+      'group' => 'DFMP',
+    );
+  }
+  public function setUp() {
+    $this->profile = 'dfmp';
+
+    parent::setUp();
+
+    drupal_flush_all_caches();
+  }
+  public function testAccessUser() {
+    $user = $this->drupalCreateUser(array('access content', 'create page content', 'access_file_uploading_page'));
+    $this->drupalLogin($user);
+    $this->drupalGet('/dfmp/file_uploader');
+    $this->assertResponse('200', 'page exist');
+    $this->assertRaw(t('Upload'), 'Start button exist');
+    $this->assertRaw(t('Delete Selected'), 'Delete button exist');
+    $this->assertRaw(t('Select files'), 'Add button exist');
+
+    $user = user_load($user->uid);
+
+    // DELETE test user
+    $deleteUser = CkanApi::getInstance()->action('delete_user_test', array(
+      'data' => array(
+        'user' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+      )
+    ));
+  }
+
+  public function testNoAccessUser() {
+    $this->drupalGet('/dfmp/file_uploader');
+    $this->assertRaw('Access denied', "Anonymus can't access this page");
+  }
+
+  public function testAssetCkanActions() {
+    $user = $this->drupalCreateUser(array('access content', 'create page content', 'access_file_uploading_page'));
+    $this->drupalLogin($user);
+
+    $user = user_load($user->uid);
+
+    $file1 = new stdClass();
+    $file2 = new stdClass();
+
+    $file1->name = 'image.jpg';
+    $file1->size = 1982;
+    $file1->type = 'image/jpg';
+    $file1->url = '/sites/default/files/image.jpg';
+    $file1->thumbnailUrl = 'sites/default/files/thumbnail/image.jpg';
+    $file1->license = 'notspecified';
+    $file1->description = '';
+    $file1->tags = '';
+    $file1->geoLocation = array(
+      'lat' => '-33.867650',
+      'lng' => '151.186104',
+    );
+
+    $file2->name = 'image1.jpg';
+    $file2->size = 194;
+    $file2->type = 'image/jpg';
+    $file2->url = '/sites/default/files/image1.jpg';
+    $file2->thumbnailUrl = 'sites/default/files/thumbnail/image1.jpg';
+    $file2->license = 'odc-pddl';
+    $file1->description = 'Description';
+    $file1->tags = 'Tags';
+    $file2->geoLocation = array(
+      'lat' => '-33.867650',
+      'lng' => '151.186104',
+    );
+
+    $files = array(
+        $file1,
+        $file2,
+    );
+
+    $saved_files = array();
+    foreach ($files as $file) {
+
+        // posts assets to CKAN
+        $options = array(
+            'data' => array(
+                'name' => $file->name,
+                'size' => $file->size,
+                'type' => $file->type,
+                'url' => $file->url,
+                'thumbnailUrl' => $file->thumbnailUrl,
+                'license' => $file->license,
+                'geoLocation' => $file->geoLocation,
+                'description' => isset($file->description) ? $file->description : '',
+                'tags' => isset($file->tags) ? $file->tags : '',
+            ),
+            'api_key' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+        );
+
+        $resource = CkanApi::getInstance()->action('user_add_asset', $options);
+
+      if (isset($file->geoLocation)) {
+        $asset = CkanApi::getInstance()->action('resource_items', array(
+          'data' => array(
+            'id' => $resource->parent_id,
+            'item' => $resource->assetID,
+          )
+        ));
+        $asset = reset($asset->records);
+        $this->assertTrue($asset, t('Asset have been returned.'));
+        $this->assertTrue($asset->metadata->geoLocation->lat, t('Asset spatial lat have been returned.'));
+        $this->assertTrue($asset->metadata->geoLocation->lng, t('Asset spatial lng have been returned.'));
+      }
+
+        $license_types = __dfmp_file_uploader_request_license_list();
+
+        $saved_files = array_merge(__dfmp_file_uploader_fetch_data_from_response(array($resource), $license_types), $saved_files);
+    }
+
+    // as resources saved asynchronous we need to match them with initial files
+    if ($saved_files[0]->name != $file1->name) {
+      $file1_copy = $file1;
+      $file2_copy = $file2;
+      $file1 = $file2_copy;
+      $file2 = $file1_copy;
+    }
+
+    $this->assertTrue(count($saved_files) == 2, t('2 resources has been saved on CKAN.'));
+
+    $this->assertTrue($saved_files[0]->id, t('Resources1 id have been returned.'));
+    $this->assertTrue($saved_files[1]->id, t('Resources2 id have been returned.'));
+
+    $this->assertTrue($saved_files[0]->name, t('Resources1 name have been returned.'));
+    $this->assertTrue($saved_files[1]->name, t('Resources2 name have been returned.'));
+
+    $this->assertTrue($saved_files[0]->size, t('Resources1 size have been returned.'));
+    $this->assertTrue($saved_files[1]->size, t('Resources2 size have been returned.'));
+
+    $this->assertTrue($saved_files[0]->url, t('Resources1 url have been returned.'));
+    $this->assertTrue($saved_files[1]->url, t('Resources2 url have been returned.'));
+
+    $this->assertTrue($saved_files[0]->thumbnailUrl, t('Resources1 thumbnailUrl have been returned.'));
+    $this->assertTrue($saved_files[1]->thumbnailUrl, t('Resources2 thumbnailUrl have been returned.'));
+
+    $this->assertTrue($saved_files[0]->license, t('Resources1 license have been returned.'));
+    $this->assertTrue($saved_files[1]->license, t('Resources2 license have been returned.'));
+
+    $this->assertTrue($saved_files[1]->description, t('Resources2 description have been returned.'));
+    $this->assertTrue($saved_files[1]->tags, t('Resources2 tags have been returned.'));
+
+    //checking values
+    $this->assertTrue($saved_files[0]->name == $file1->name, t('Resources1 name is correct.'));
+    $this->assertTrue($saved_files[1]->name == $file2->name, t('Resources2 name is correct.'));
+
+    $this->assertTrue($saved_files[0]->size == $file1->size, t('Resources1 size is correct.'));
+    $this->assertTrue($saved_files[1]->size == $file2->size, t('Resources2 size is correct.'));
+
+    $this->assertTrue($saved_files[0]->url == $file1->url, t('Resources1 url is correct.'));
+    $this->assertTrue($saved_files[1]->url == $file2->url, t('Resources2 url is correct.'));
+
+    $this->assertTrue($saved_files[0]->thumbnailUrl == $file1->thumbnailUrl, t('Resources1 thumbnailUrl is correct.'));
+    $this->assertTrue($saved_files[1]->thumbnailUrl == $file2->thumbnailUrl, t('Resources2 thumbnailUrl is correct.'));
+
+    $this->assertTrue($saved_files[0]->license == $file1->license, t('Resources1 license is correct.'));
+    $this->assertTrue($saved_files[1]->license == $file2->license, t('Resources2 license is correct.'));
+
+    $this->assertTrue($saved_files[1]->description == $file2->description, t('Resources2 description is correct.'));
+    $this->assertTrue($saved_files[1]->tags == $file2->tags, t('Resources2 tags is correct.'));
+
+
+    // GET assets from CKAN
+    $uploader = new stdClass();
+    $uploader->requested_objects = array();
+    $resources = __dfmp_file_uploader_get_resource_files($uploader, $user);
+
+    $this->assertTrue(count($saved_files) == count($resources), t('The same number of resources has been returned.'));
+
+    $resources_id = array();
+    foreach ($resources as $resource) {
+      $resources_id[] = $resource->id;
+    }
+
+    $files_id = array();
+    foreach ($saved_files as $resource) {
+      $files_id[] = $resource->id;
+      $files_assets_id[] = $resource->id . '__' . $resource->assetID;
+    }
+
+    $this->assertFalse(array_diff($files_id, $resources_id), t('The same IDs have been returned.'));
+
+    $data = array(
+      'filesUpdate' => array(
+        0 => array(
+          'resource_id' => $files_assets_id[0],
+          'license' => 'other-nc',
+          'description' => 'Description',
+          'tags' => 'Tags',
+          'name' => 'New name',
+        )
+      )
+    );
+
+    // Update assets
+    dfmp_file_update_callback($data, $user);
+
+    // GET assets from CKAN
+    $uploader = new stdClass();
+    $uploader->requested_objects = array();
+    $resources = __dfmp_file_uploader_get_resource_files($uploader, $user);
+
+    foreach ($resources as $resource) {
+      if (strpos($data['filesUpdate'][0]['resource_id'], $resource->assetID) !== FALSE) {
+        $this->assertTrue($resource->license == $data['filesUpdate'][0]['license'], t('License has been successfully updated.'));
+        $this->assertTrue($resource->description == $data['filesUpdate'][0]['description'], t('Description has been successfully updated.'));
+        $this->assertTrue($resource->tags == $data['filesUpdate'][0]['tags'], t('Tags has been successfully updated.'));
+        break;
+      }
+    }
+
+    $data = array(
+      'filesUpdate' => array(
+        0 => array(
+          'resource_id' => $files_assets_id[0],
+        ),
+        1 => array(
+          'resource_id' => $files_assets_id[1],
+        )
+      )
+    );
+
+    // delete assets
+    dfmp_file_delete_callback($data, $user);
+
+    // GET assets from CKAN
+    $uploader = new stdClass();
+    $uploader->requested_objects = array();
+    $resources = __dfmp_file_uploader_get_resource_files($uploader, $user);
+
+    $this->assertFalse($resources, t('Assets have been removed.'));
+
+    // DELETE test user
+    $deleteUser = CkanApi::getInstance()->action('delete_user_test', array(
+        'data' => array(
+            'user' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+        )
+    ));
+
+  }
+
+}
+

@@ -1,0 +1,101 @@
+/* MOBILE HEADER */
+#mini-panel-dfmp_header {
+
+  /* 320px STYLES */
+  @include at-breakpoint($narrow-small) {
+    .container {
+      padding: 0 20px;
+      height: 89px;
+    }
+    #logo {
+      padding-top: 20px;
+    }
+    #logo img {
+      width: 50px;
+      height: 50px;
+    }
+    .logo-title {
+      font-size: 18px;
+      margin-top: 17px;
+    }
+    #navigation-toggle {
+      background: url(../img/menu-icon.png) center center no-repeat;
+      display: block;
+      width: 35px;
+      height: 23px;
+      overflow: hidden;
+      text-indent: -9999px;
+      margin-top: 37px;
+      float: right;
+      &.active-toggle {
+        background: url(../img/menu-icon-hover.png) center center no-repeat;
+      }
+    }
+    .prime-mobile {
+      width: 100% !important;
+    }
+    .minipanel-three-33-second-fw {
+      display: block;
+      background: #000;
+      padding-top: 89px;
+      margin-right: 0px !important;
+      & nav {
+        float: none;
+        padding-top: 0px;
+        text-align: left;
+        & li {
+          display: block;
+          text-align: left;
+        }
+      }
+    }
+    .minipanel-three-33-third-fw {
+      display: none !important;
+    }
+  }
+
+  /* BIGGER THEN 320px STYLES */
+
+  @include at-breakpoint($tablet) {
+    .minipanel-three-33-second-fw {
+      margin-right: 0px !important;
+    }
+  }
+  @include at-breakpoint($wide) {
+    .container {
+      padding: 0 30px;
+      height: 139px;
+    }
+    #logo {
+      padding-top: 30px;
+    }
+    #logo img {
+      width: 50;
+      height: 50;
+    }
+    .logo-title {
+      font-size: 18px;
+      margin-top: 25px;
+    }
+    .minipanel-three-33-second-fw {
+      display: none !important;
+    }
+    #navigation-toggle {
+      display: none;
+    }
+    .minipanel-three-33-third-fw {
+      display: inline !important;
+    }
+  }
+
+  @include at-breakpoint($wide) {
+    #logo img {
+      width: auto;
+      height: auto;
+    }
+    .logo-title {
+      font-size: 28px;
+      margin-top: 45px;
+    }
+  }
+}

@@ -1,0 +1,384 @@
+<?php
+/**
+ * @file
+ * Code for the DFMP Search feature.
+ */
+
+include_once 'dfmp_search.features.inc';
+
+/**
+ * Implementation of hook_ctools_plugin_directory().
+ */
+function dfmp_search_ctools_plugin_directory($owner, $plugin_type) {
+  if ($owner == 'ctools') {
+    return 'plugins/' . $plugin_type;
+  }
+}
+
+/**
+ * Implementation of hook_theme().
+ */
+function dfmp_search_theme() {
+  return array(
+    'dfmp_search_view' => array(
+      'template' => 'dfmp_search_view',
+      'path' => drupal_get_path('module', 'dfmp_search') . '/theme',
+    ),
+    'dfmp_search_date_input_theme' => array(
+      'render element' => 'form',
+    ),
+
+    'dfmp_search_radio_input' => array(
+      'render element' => 'element',
+    ),
+
+    'dfmp_search_result_filter_form_template' => array(
+      'render element' => 'form',
+      'template' => 'dfmp-search-result-filter-form-template',
+      'path' => drupal_get_path('module', 'dfmp_search') . '/theme',
+
+    ),
+    'dfmp_search_result_form_template' => array(
+      'render element' => 'form',
+      'template' => 'dfmp-search-result-form-template',
+      'path' => drupal_get_path('module', 'dfmp_search') . '/theme',
+
+    ),
+  );
+}
+
+function dfmp_search_gallery_view_scroll ($query_string) {
+
+  $offset = arg(3) && (int)arg(3) ? (int)arg(3) * 12 : 0;
+
+  $gallery = CkanApi::getInstance()->action('search_item', array(
+    'data' => array(
+      'query_string' => $query_string,
+      'limit' => 12,
+      'offset' => $offset,
+    )
+  ));
+
+  print theme('dfmp_dataset_viewer_gallery_view_scroll', array(
+    'gallery' => $gallery->records,
+  ));
+  die();
+}
+
+function dfmp_search_get_search_item($value) {
+  global $user;
+
+  $user = user_load($user->uid);
+
+  $api_key = (isset($user->field_user_api_key[LANGUAGE_NONE][0]['value']) ? $user->field_user_api_key[LANGUAGE_NONE][0]['value'] : '');
+
+  $assets = CkanApi::getInstance()->action('search_item', array(
+    'api_key' => $api_key,
+    'data' => array(
+      'query_string' => array(
+        'name' => $value['search_title'],
+        'tags' => isset($value['search_tags']) ? strtolower($value['search_tags']) : NULL,
+        'date' => isset($value['search_date']) ? $value['search_date'] : NULL,
+        'type' => $value['search_type'],
+        'licence' => $value['licence'],
+        'include_description' => (bool)$value['include_description'],
+      ),
+      'limit' => IMAGES_PER_PAGE,
+      'offset' => (isset($_GET['page']) && is_numeric($_GET['page'])) ? $_GET['page'] * IMAGES_PER_PAGE : '',
+    )
+  ));
+
+  return $assets;
+}
+
+function dfmp_dataset_viewer_gallery_search_view ($show_pager = TRUE) {
+  $get = $_GET;
+  unset($get['q'], $get['callback']);
+  $pager = '';
+  $offset = 0;
+  $check_local = '';
+  $local_btn_msg = t("Download displayed images");
+  $value = array(
+    'search_title' => '',
+    'include_description' => 0,
+    'search_tags' => '',
+    'search_type' => '',
+    'licence' => '',
+  );
+  $value = array_merge($value, $get);
+
+  drupal_add_js(drupal_get_path('module', 'dfmp_dataset_viewer') . '/theme/js/inf-scroll.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_dataset_viewer') . '/theme/js/imagesLoaded.js');
+  drupal_add_css(drupal_get_path('module', 'dfmp_dataset_viewer') . '/theme/css/custom.css');
+
+  $assets = dfmp_search_get_search_item($value);
+
+  if (module_exists('dfmp_file_uploader')) {
+    $check_local = dfmp_file_uploader_check_local_files($assets);
+
+    if (empty($check_local)) {
+      $local_btn_msg = t("This page has only images from Flickr or Twitter, which can't be downloaded in a zip file. View each image individually to download.");
+    }
+  }
+  if ($show_pager) {
+    $current_page = pager_default_initialize($assets->count, IMAGES_PER_PAGE);
+    $pager = theme('pager', array('tags' => array('« First', 'Previous', '...', 'Next', 'Last »')));
+    $offset = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] * IMAGES_PER_PAGE : 0;
+  }
+
+  if (!isset($assets->records) || !$assets->records) {
+    $form = _dfmp_search_results_header_render();
+    $form .= drupal_render(drupal_get_form('dfmp_search_result_filter_form'));
+    return __dfmp_dataset_viewer_not_found_block(t('Search results not found'), array(), $form);
+  }
+
+  $images = _dfmp_dataset_viewer_prepare_gallery_view($assets->records);
+  $form = drupal_get_form('dfmp_search_result_filter_form');
+  $dwn_form = drupal_get_form('dfmp_file_uploader_dwn_collection', $check_local, $get);
+
+  $cur_url = mb_substr(request_uri(), 1);
+  $val = db_select('field_data_field_link', 'f')
+           ->fields('f', array('entity_id'))
+           ->condition('field_link_url', $cur_url)
+           ->execute()
+           ->fetchField();
+  $cache_field = 'bid_' . $val . '_ckan_request_cache';
+  db_delete('cache')
+    ->condition('cid',$cache_field)
+    ->execute();
+
+  return theme('dfmp_search_view', array(
+    'gallery' => $images,
+    'term' => $value,
+    'form' => $form,
+    'item_count' => $assets->count,
+    'offset' => $offset,
+    'get_query' => $get,
+    'count_local_files' => count($check_local),
+    'dwn_form' => $dwn_form,
+    'dwn_btn_msg' => $local_btn_msg
+  )) . $pager;
+}
+
+/**
+ * Helper function return header for search form
+ */
+function _dfmp_search_results_header_render($current = NULL, $total = NULL) {
+  $form = '<h1 class="uppercase">' . t('Search results') . '</h1>';
+  $form .= '<div class="results-count-wrapper">';
+  if (!empty($_GET['search_title']) && !is_null($total) && !is_null($current)) {
+    $form .= t('Search returned <span class="total">!total</span> results for "@NAME". Displaying <span class="current">!current</span> of <span class="total">!total</span>', array('!current' => $current, '!total' => $total, '@NAME' => $_GET['search_title']));
+  }
+  elseif (empty($_GET['search_title']) && !is_null($total) && !is_null($current)) {
+    $form .= t('Search returned <span class="total">!total</span>. Displaying <span class="current">!current</span> of <span class="total">!total</span>', array('!current' => $current, '!total' => $total));
+  }
+  $form .= '</div>';
+
+  return $form;
+}
+
+/**
+ * Implements form().
+ */
+function dfmp_search_result_form($form, &$form_state) {
+
+  $form = array();
+
+  $form['#theme'] = 'dfmp_search_result_form_template';
+
+  $form['search_title'] = array(
+    '#type' => 'textfield',
+    '#attributes' => array('placeholder' => 'Search for CBR images and videos'),
+  );
+
+  $form['search_markup'] = array(
+    '#type' => 'item',
+    '#markup' => '<div class="search-markup">Type: <span id="click-type">All CBR images and videos</span></div>',
+  );
+
+  $types = array('' => '', 'image' => '', 'video' => '');
+  $form['search_type'] = array(
+    '#type' => 'radios',
+    '#default_value' => '',
+    '#options' => $types,
+  );
+
+  $form['search_markup_licence'] = array(
+    '#type' => 'item',
+    '#markup' => '<div class="search-markup">Licence: <span id="click-type-licence">Any</span></div>',
+  );
+
+  $form['search_licence'] = array(
+    '#type' => 'radios',
+    '#options' => array('' => '', 'cc' => ''),
+  );
+  $form['search_clear_link'] = array(
+    '#type' => 'link',
+    '#title' => 'Clear search',
+    '#href' => current_path(),
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Submit',
+  );
+
+  $form['#submit'][] = 'dfmp_search_block_submit';
+
+  return $form;
+
+}
+
+
+function dfmp_search_result_filter_form($form, &$form_state) {
+  $form['#theme'] = 'dfmp_search_result_filter_form_template';
+  $form['#attached']['js'][] = drupal_get_path('module', 'dfmp_search') . '/js/dfmp_search.js';
+  $form['#attached']['js'][] = drupal_get_path('theme', 'dfmp') . '/js/jquery.selectbox.js';
+
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Title'),
+    '#default_value' => !empty($_GET['search_title']) ? $_GET['search_title'] : '',
+  );
+
+  $form['include_description'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Include description'),
+    '#default_value' => !empty($_GET['include_description']) ? $_GET['include_description'] : '',
+  );
+
+  $form['search_tags'] = array(
+    '#type' => 'textfield',
+    '#autocomplete_path' => url('dfmp/dataset/keywords', array('absolute' => TRUE)),
+  );
+  $form['search_tags_hidden'] = array(
+    '#type' => 'textfield',
+    '#default_value' => !empty($_GET['search_tags']) ? $_GET['search_tags'] : '',
+  );
+
+  $form['search_type_media'] = array(
+    '#title' => t('Type'),
+    '#type' => 'select',
+    '#options' => array('' => 'All CBR images and videos', 'image' => t('Images only'), 'video' => t('Videos only')),
+    '#default_value' => !empty($_GET['search_type']) ? $_GET['search_type'] : '',
+  );
+
+  $form['search_licence'] = array(
+    '#title' => t('Licence'),
+    '#type' => 'select',
+    '#options' => array('' => 'Any', 'cc' => t('Creative commons licensed')),
+    '#default_value' => !empty($_GET['licence']) ? $_GET['licence'] : '',
+  );
+  $form['search_clear_link'] = array(
+    '#type' => 'link',
+    '#title' => 'Clear search',
+    '#href' => current_path(),
+    '#attributes' => array('class' => array('reset-link')),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Refresh search'),
+    '#attributes' => array('class' => array('btn-pink')),
+  );
+
+  return $form;
+}
+
+/**
+ * Submit for dfmp_search_result_filter_form form
+ */
+function dfmp_search_result_filter_form_submit($form, &$form_state) {
+  $value = $form_state['values'];
+
+  $get = array(
+    'search_title' => $value['title'],
+    'include_description' => $value['include_description'],
+    'search_tags' => $value['search_tags_hidden'],
+    'search_type' => $value['search_type_media'],
+    'licence' => $value['search_licence'],
+  );
+  $cbr_collection = drupal_get_path_alias(current_path());
+  if ($cbr_collection != 'gallery/search') {
+    $form_state['redirect'] = url($cbr_collection, array('absolute' => TRUE, 'query' => $get));
+  }
+  else {
+    $form_state['redirect'] = url('gallery/search', array('absolute' => TRUE, 'query' => $get));
+  }
+}
+
+/**
+ * Theme date input
+ */
+function theme_dfmp_search_date_input_theme($element) {
+  $input = reset($element);
+  unset($input['date']['#description']);
+  $input['date']['#title_display'] = 'invisible';
+  $output = '';
+  $output .= drupal_render($input['date']);
+  return $output;
+}
+
+/**
+ * @param $form
+ * @param $form_state
+ * Callback for search block
+ */
+function dfmp_search_block_submit($form, &$form_state) {
+  $value = $form_state['values'];
+
+  $get = array(
+    'search_title' => $value['search_title'],
+    'include_description' => 0,
+    'search_tags' => '',
+    'search_type' => '',
+    'licence' => '',
+  );
+  if (in_array($value['search_type'], array('image', 'video'))) {
+    $get['search_type'] = $value['search_type'];
+  }
+  if (in_array($value['search_licence'], array('cc'))) {
+    $get['licence'] = $value['search_licence'];
+  }
+
+  $form_state['redirect'] = url('gallery/search', array('absolute' => TRUE, 'query' => $get));
+}
+
+function dfmp_search_preprocess_radio (&$variables) {
+  $element = &$variables['element'];
+  if ($element['#name'] == 'search_type' || $element['#name'] == 'search_licence') {
+    $variables['theme_hook_suggestion'] = 'dfmp_search_radio_input';
+  }
+}
+
+function theme_dfmp_search_radio_input($variables) {
+  $element = $variables['element'];
+  $element['#attributes']['type'] = 'radio';
+  element_set_attributes($element, array('id', 'name', '#return_value' => 'value'));
+
+  if (isset($element['#return_value']) && $element['#value'] !== FALSE && $element['#value'] == $element['#return_value']) {
+    $element['#attributes']['checked'] = 'checked';
+  }
+  _form_set_class($element, array('form-radio'));
+  $id = $element['#id'];
+
+  switch ($element['#name']) {
+    case 'search_type':
+      $title = array(
+        '' => 'All CBR images and videos',
+        'image' => 'Images only',
+        'video' => 'Videos only',
+      );
+      break;
+    case 'search_licence':
+      $title = array(
+        '' => 'Any',
+        'cc' => 'Creative commons licensed',
+      );
+      break;
+  }
+
+  $output = '<label for="'. $id .'"><input' . drupal_attributes($element['#attributes']) . ' />' . $title[$element['#attributes']['value']]  .'</label>';
+
+  return $output  ;
+}
+

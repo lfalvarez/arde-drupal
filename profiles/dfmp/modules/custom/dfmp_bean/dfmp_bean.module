@@ -1,0 +1,10 @@
+<?php
+
+define('VAR_NAME', 'field_bundle_settings_bean__call_to_action_block');
+
+/**
+ * @file
+ * Code for the DFMP bean feature.
+ */
+
+include_once 'dfmp_bean.features.inc';

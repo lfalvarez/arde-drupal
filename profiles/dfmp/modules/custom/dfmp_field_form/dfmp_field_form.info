@@ -1,0 +1,7 @@
+name = DFMP Field Form
+description = An implementation of a field to render form
+core = 7.x
+package = DFMP
+version = 7.x-1.6
+project = dfmp_field_form
+

@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the DFMP Accordion Page Type feature.
+ */
+
+include_once 'dfmp_accordion_page_type.features.inc';

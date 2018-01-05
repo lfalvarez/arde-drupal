@@ -1,0 +1,81 @@
+<?php
+/**
+ * Implements hook_menu().
+ */
+function dfmp_imagerotator_menu(){
+  $items['imagerotator/%'] = array(
+    'title' => 'Rotate Image',
+    'page callback' => 'dfmp_image_rotate',
+    'page arguments' => array(1),
+    'access arguments' => array('access content')
+  );
+  return $items;
+}
+
+
+function dfmp_image_rotate($id) {
+
+  $resource_object = FALSE;
+  $uploader = new stdClass();
+  $uploader->requested_objects = array();
+  $resource_list = __dfmp_file_uploader_get_resource_files($uploader, NULL, array('offset' => $page * UPLOADER_ITEMS_PER_PAGE, 'limit' => UPLOADER_ITEMS_PER_PAGE));
+
+  foreach ($resource_list as $key => $resource) {
+    if ($resource->assetID == $id) {
+      $resource_object = $resource;
+      break;
+    }
+  }
+  if (!$resource_object) {
+    drupal_access_denied();
+    exit;
+  }
+
+  // get correct path
+  if ($resource_object->url[0] == '/') {
+    $filename = substr($resource_object->url, 1);
+    $thumb = substr($resource_object->thumbnailUrl, 1);
+  }
+  else {
+    $filename = $resource_object->url;
+    $thumb = $resource_object->thumbnailUrl;
+  }
+
+  $type_to_method = array(3 => 'png', 2 => 'jpeg', 1 => 'gif');
+  $type = exif_imagetype($filename);
+
+  $method = $type_to_method[$type];
+
+  //imagecreatefrom
+  // create image source
+  $create_method = 'imagecreatefrom' . $method;
+  $image_source = $create_method($filename);
+  $image_source_thumb = $create_method($thumb);
+
+  // rotate both images
+  if (isset($_GET['clock']) && $_GET['clock']) {
+    $degrees = 270;
+  }
+  else {
+    $degrees = 90;
+  }
+
+  $rotate = imagerotate($image_source, $degrees, 0);
+  $rotate_thumb = imagerotate($image_source_thumb, $degrees, 0);
+
+  if ($method == 'png') {
+    // Turn off alpha blending and set alpha flag
+    imagealphablending($rotate_thumb, FALSE);
+    imagesavealpha($rotate_thumb, TRUE);
+
+    imagealphablending($rotate, FALSE);
+    imagesavealpha($rotate, TRUE);
+  }
+
+  // create new image and rewrite the source
+  $image_method = 'image' . $method;
+  $image = $image_method($rotate, $filename);
+  $image_thumb = $image_method($rotate_thumb, $thumb);
+  print drupal_json_encode(array('new_src_img' => $resource_object->thumbnailUrl));
+  die();
+}

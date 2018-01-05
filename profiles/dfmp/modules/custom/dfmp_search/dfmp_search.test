@@ -1,0 +1,89 @@
+<?php
+
+
+/**
+ * @file
+ * Tests for search functionality
+ */
+class DfmpSearchTestCase extends DrupalWebTestCase{
+  public static function getInfo() {
+    return array(
+      'name' => 'Test DFMP search functionality',
+      'description' => 'Test DFMP search functionality',
+      'group' => 'DFMP',
+    );
+  }
+
+
+  public function setUp() {
+    $this->profile = 'dfmp';
+
+    parent::setUp();
+
+    drupal_flush_all_caches();
+  }
+
+  public function testAdvancedSearch() {
+    // Create user
+    $user = $this->drupalCreateUser(array('access content', 'create page content', 'access_file_uploading_page'));
+    $this->drupalLogin($user);
+    $user = user_load($user->uid);
+
+    // Search for test asset
+    $assets = CkanApi::getInstance()->action('search_item', array(
+      'api_key' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+      'data' => array(
+        'query_string' => array(
+          'tags' => 'CBR',
+        ),
+        'limit' => IMAGES_PER_PAGE_MINI,
+        'offset' => 0,
+      )
+    ));
+    $tags = !empty($assets->records[0]->tags) ? array_flip($assets->records[0]->tags) : array();
+    $this->assertTrue(isset($tags['CBR']), 'Find by CBR tag');
+
+    // Search for test asset
+    $assets = CkanApi::getInstance()->action('search_item', array(
+      'api_key' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+      'data' => array(
+        'query_string' => array(
+          'tags' => 'CBR,incorrect_dfmp_test_tag12345',
+        ),
+        'limit' => IMAGES_PER_PAGE_MINI,
+        'offset' => 0,
+      )
+    ));
+    $this->assertTrue($assets->count == 0, 'Tags search working with AND condition');
+
+    // Search for test asset
+    $assets = CkanApi::getInstance()->action('search_item', array(
+      'api_key' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+      'data' => array(
+        'query_string' => array(
+          'name' => 'starl3n',
+        ),
+        'limit' => IMAGES_PER_PAGE_MINI,
+        'offset' => 0,
+      )
+    ));
+    $this->assertTrue(strpos($assets->records[0]->name, 'starl3n') !== FALSE, 'Find by name starl3n');
+
+    $formfields['title'] = 'starl3n';
+
+    $this->drupalPost('gallery/search', $formfields, 'Refresh search');
+
+    $xpath = $this->buildXPathQuery('//div[@id=:id]//p[@class=:class]', array(':id' => 'assetimimage', ':class' => 'image-name'));
+    $this->assertFieldByXPath($xpath, NULL, t('Page contains results.'));
+
+    // DELETE test user
+    $deleteUser = CkanApi::getInstance()->action('delete_user_test', array(
+      'data' => array(
+        'user' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+      )
+    ));
+
+  }
+
+
+}

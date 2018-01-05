@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Media Item feature.
+ */
+
+include_once 'media_item.features.inc';

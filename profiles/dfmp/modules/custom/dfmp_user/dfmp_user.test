@@ -1,0 +1,249 @@
+<?php
+
+define("ACCEPT_TERMS_MESSAGE", t('Registration successful. You are now logged in'));
+define("DONT_ACCEPT_TERMS_AND_CONDITIONS_MESSAGE", t('I agree with these'));
+define("IVALID_EMAIL_MESSAGE", t('The e-mail address'));
+define("DIFF_PASS_MESSAGE", t('The specified passwords do not match.'));
+define("EMAIL_ALREADY_REGISTERED_MESSAGE", t('Have you forgotten your password?'));
+define("SHORT_PASS_MESSAGE", t('The password should contain at least'));
+
+/**
+ * @file
+ * Tests for the Request promotion module
+ */
+class DfmpUserPromotionCase extends DrupalWebTestCase{
+  public static function getInfo() {
+    return array(
+      'name' => 'Request promotion module functionality',
+      'description' => 'Request promotion in the Current posts module',
+      'group' => 'DFMP',
+    );
+  }
+
+
+  public function setUp() {
+    $this->profile = 'dfmp';
+    parent::setUp();
+    $this->public_files_directory = variable_get('file_public_path');
+    dfmp_setup_cleanup();
+    drupal_flush_all_caches();
+  }
+
+  public function testPromotionRequest() {
+    $user = $this->drupalCreateUser(array('access content'));
+    $this->drupalLogin($user);
+    $this->drupalGet('promotion/act');
+    $this->assertResponse(200, t('User is allowed to promotion request.'));
+    $this->drupalLogout();
+
+    $user = user_load($user->uid);
+
+    // DELETE test user
+    $deleteUser = CkanApi::getInstance()->action('delete_user_test', array(
+      'data' => array(
+        'user' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+      )
+    ));
+  }
+
+  public function testPromotionList() {
+    $user = $this->drupalCreateUser(array('access content', 'administer promotion request'));
+    $this->drupalLogin($user);
+    $this->drupalGet('promotion', array('query' => array('action' => 1, 'uid' => $user->uid, 'territory' => 'act')));
+    $this->assertResponse(200, t('User is administer promotion request Approved.'));
+    $this->assert(TRUE, t('Variable content: @variable'), array('@variable' => var_export($user->roles, TRUE)));
+    $this->drupalGet('promotion', array('query' => array('action' => 0, 'uid' => $user->uid, 'territory' => 'act')));
+    $this->assertResponse(200, t('User is administer promotion request Canceled.'));
+
+    $user = user_load($user->uid);
+
+    // DELETE test user
+    $deleteUser = CkanApi::getInstance()->action('delete_user_test', array(
+      'data' => array(
+        'user' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+      )
+    ));
+  }
+
+}
+
+class DfmpUserTestingClass1 extends DrupalWebTestCase {
+  public static function getInfo() {
+    return array(
+      'name' => 'dfmp_user Testing User registration',
+      'description' => 'dfmp_user Testing  Anonymous User Registration',
+      'group' => 'dfmp_user Group',
+    );
+  }
+  public function setUp() {
+    $this->profile = 'dfmp';
+    parent::setUp();
+    dfmp_setup_cleanup();
+    drupal_flush_all_caches();
+  }
+  public function testAcseptTermsOfUse() {
+    $formfields['name'] = $this->randomName(10);
+    $formfields['mail'] = $this->randomName(5) . '@gmail.com';
+    $vg = variable_get('dfmp_user_max_pass_lenght', 6);
+    $formfields['pass[pass1]'] = $formfields['pass[pass2]'] = $this->randomName($vg);
+    $formfields['terms_of_use'] = TRUE;
+    $this->drupalPost('/user/register', $formfields, 'Create new account');
+    $this->assertRaw(ACCEPT_TERMS_MESSAGE, t('User successfully registred! Test passed.'));
+  }
+  public function testDontAcseptTerms() {
+    $formfields['name'] = $this->randomName(10);
+    $formfields['mail'] = $this->randomName(5) . '@gmail.com';
+    $vg = variable_get('dfmp_user_max_pass_lenght', 6);
+    $formfields['pass[pass1]'] = $formfields['pass[pass2]'] = $this->randomName($vg);
+    $formfields['terms_of_use'] = FALSE;
+    $this->drupalPost('/user/register', $formfields, 'Create new account');
+    $this->assertRaw(DONT_ACCEPT_TERMS_AND_CONDITIONS_MESSAGE, 'User don\'t registred! Test passed.');
+  }
+  public function testInvalidEmail() {
+    $formfields['name'] = $this->randomName(10);
+    $formfields['mail'] = $this->randomName(5);
+    $vg = variable_get('dfmp_user_max_pass_lenght', 6);
+    $formfields['pass[pass1]'] = $formfields['pass[pass2]'] = $this->randomName($vg);
+    $formfields['terms_of_use'] = TRUE;
+    $this->drupalPost('/user/register', $formfields, 'Create new account');
+    $this->assertRaw(IVALID_EMAIL_MESSAGE, 'User don\'t registred! Test passed.');
+  }
+  public function testDifferentPassword() {
+    $formfields['name'] = $this->randomName(10);
+    $formfields['mail'] = $this->randomName(5) . '@gmail.com';
+    $vg = variable_get('dfmp_user_max_pass_lenght', 6);
+    $formfields['pass[pass1]'] = $this->randomName($vg);
+    $formfields['pass[pass2]'] = $this->randomName($vg);
+    $formfields['terms_of_use'] = TRUE;
+    $this->drupalPost('/user/register', $formfields, 'Create new account');
+    $this->assertRaw(DIFF_PASS_MESSAGE, 'User don\'t registred! Test passed.');
+  }
+  public function testShortPassword() {
+    $formfields['name'] = $this->randomName(10);
+    $formfields['mail'] = $this->randomName(5) . '@gmail.com';
+    $vg = variable_get('dfmp_user_max_pass_lenght', 6);
+    $formfields['pass[pass1]'] = $formfields['pass[pass2]'] = $this->randomName($vg-1);
+    $formfields['terms_of_use'] = TRUE;
+    $this->drupalPost('/user/register', $formfields, 'Create new account');
+    $this->assertRaw(SHORT_PASS_MESSAGE, 'User don\'t registred! Test passed.');
+  }
+}
+
+
+class DfmpUserTestingClass2 extends DrupalWebTestCase {
+  public static function getInfo() {
+    return array(
+      'name' => 'dfmp_user Testing  Registered User Registration',
+      'description' => 'dfmp_user Testing  Registered User Registration',
+      'group' => 'dfmp_user Group',
+    );
+  }
+
+  public function setUp() {
+    $this->profile = 'dfmp';
+    parent::setUp();
+    dfmp_setup_cleanup();
+    drupal_flush_all_caches();
+    $this->user = $this->drupalCreateUser($permissions = array('post comments'));
+    //$this->drupalLogin($this->user);
+    global $_dfmp_user_email_ard;
+    $_dfmp_user_email_ard = $this->user->mail;
+  }
+
+  public function testDuplicateEmail() {
+    $formfields['name'] = $this->randomName(10);
+    global $_dfmp_user_email_ard;
+    $formfields['mail'] = $_dfmp_user_email_ard;
+    $formfields['pass[pass1]'] = $formfields['pass[pass2]'] = $this->randomName(8);
+    $formfields['terms_of_use'] = TRUE;
+    $this->drupalPost('/user/register', $formfields, 'Create new account');
+    $this->assertRaw(EMAIL_ALREADY_REGISTERED_MESSAGE, 'User don\'t registred! Test passed.');
+  }
+}
+
+class DfmpUserDatasetElements extends DrupalWebTestCase {
+  public static function getInfo() {
+    return array(
+      'name' => 'dfmp_user Testing Dataset info',
+      'description' => 'dfmp_user Dataset info',
+      'group' => 'dfmp_user Group',
+    );
+  }
+  public function setUp() {
+    $this->profile = 'dfmp';
+    parent::setUp();
+    dfmp_setup_cleanup();
+    drupal_flush_all_caches();
+  }
+  public function testCreateUserDataset() {
+    $this->drupalGet('/user/register');
+    $formfields['name'] = $this->randomName(10);
+    $formfields['mail'] = $this->randomName(5) . '@gmail.com';
+    $vg = variable_get('dfmp_user_max_pass_lenght', 6);
+    $formfields['pass[pass1]'] = $formfields['pass[pass2]'] = $this->randomName($vg);
+    $formfields['terms_of_use'] = TRUE;
+    $this->drupalPost('user/register', $formfields, 'Create new account');
+    $this->assertRaw(ACCEPT_TERMS_MESSAGE, 'User successfully registred! Test passed with dataset information.');
+    $this->drupalGet('dfmp/dataset/keywords');
+    $this->assertResponse(200, 'Autocomplete path allowed to user with permission.');
+  }
+}
+
+class DfmpUserCreateOterUser extends DrupalWebTestCase{
+  public static function getInfo() {
+    return array(
+      'name' => 'Create new user module functionality',
+      'description' => 'Creates few users with different access and force them to create other users',
+      'group' => 'DFMP',
+    );
+  }
+
+
+  public function setUp() {
+    $this->profile = 'dfmp';
+    parent::setUp();
+    $this->public_files_directory = variable_get('file_public_path');
+    dfmp_setup_cleanup();
+    drupal_flush_all_caches();
+  }
+
+  public function testCommotUserAccess() {
+    $user = $this->drupalCreateUser(array('access content'));
+    $this->drupalLogin($user);
+    $this->drupalGet("user/{$user->uid}/create_user");
+    $this->assertResponse(403, t('User is disallowed to see "Create new user" page.'));
+    $this->drupalLogout();
+
+    $user = user_load($user->uid);
+
+    // DELETE test user
+    $deleteUser = CkanApi::getInstance()->action('delete_user_test', array(
+      'data' => array(
+        'user' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+      )
+    ));
+  }
+
+  public function testUserWithPermissionsAccess() {
+    $user = $this->drupalCreateUser(array('access content', 'create users'));
+    $this->drupalLogin($user);
+    $this->drupalGet("user/{$user->uid}/create_user");
+    $this->assertResponse(200, t('User is allowed to see "Create new user" page.'));
+    $user_info = array(
+      'name' => 'jjlskeslwirjt',
+      'mail' => 'user_creation@dfmptes.com.net',
+      'pass[pass1]' => 'asdasdas',
+      'pass[pass2]' => 'asdasdas',
+    );
+    $this->drupalPost("user/{$user->uid}/create_user", $user_info, 'Create new account');
+    $this->assertResponse(200, t('User successfully created.'));
+
+    // DELETE test user
+    $deleteUser = CkanApi::getInstance()->action('delete_user_test', array(
+      'data' => array(
+        'user' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+      )
+    ));
+  }
+
+}

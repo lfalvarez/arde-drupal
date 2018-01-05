@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the DFMP footer feature.
+ */
+
+include_once 'dfmp_footer.features.inc';

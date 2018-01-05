@@ -1,0 +1,57 @@
+<?php
+/**
+ * @file
+ * Gallery tests
+ */
+define('TEST_DATASET_ID_CNBR', '8a222719-ba9e-47f9-9af0-2e4356df2afb');
+define('TEST_DATASET_ID_ERROR', 'ksjdjgskdjghsdjkghskdjghskdjghskdghksdjghskdjgh');
+define('TEST_ASSET_ID_ISSET', 9308);
+define('TEST_ASSET_ID_ERROR', '9308bb');
+
+class dfmpDatasetViewerTesterGalleryPage extends DrupalWebTestCase {
+//  protected $privileged_user;
+  public static function getInfo() {
+    return array(
+      'name' => 'Dataset viewer test Gallery',
+      'description' => 'Gallery page',
+      'group' => 'DFMP',
+    );
+  }
+  public function setUp() {
+    $this->profile = 'dfmp';
+
+    parent::setUp();
+
+    drupal_flush_all_caches();
+  }
+
+  public function errorHandler($severity, $message, $file = NULL, $line = NULL) {
+    debug(1);
+    return FALSE;
+  }
+
+  public function testDatasetGalleryPage() {
+    $this->drupalGet('/gallery/view/' . TEST_DATASET_ID_ERROR);
+    $this->assertRaw('Gallery not found', 'error page appear');
+    $this->drupalGet('/gallery/view/' . TEST_DATASET_ID_CNBR);
+    $this->assertResponse('200', 'page exist');
+    $this->assertRaw('images', 'count images exist');
+    $this->assertRaw('More info', 'more info exist');
+    $assets = CkanApi::getInstance()->action('resource_items', array(
+      'data' => array(
+        'id' => TEST_DATASET_ID_CNBR,
+      )
+    ));
+    $this->assertTrue(isset($assets->count), t('count isset'));
+    $this->assertTrue(isset($assets->description), t('Descript isset'));
+    $this->assertTrue(isset($assets->title), t('Title isset'));
+    $this->assertTrue(isset($assets->tags), t('Tags isset'));
+    $this->assertTrue(isset($assets->organization ), t('organization  isset'));
+    $this->assertTrue(isset($assets->backlink ), t('backlink isset'));
+    $this->assertTrue(isset($assets->records[0]->name), t('Name isset'));
+    $this->assertTrue(isset($assets->records[0]->url), t('Url isset'));
+    $this->assertTrue(isset($assets->records[0]->_id), t('Total row isset'));
+    $this->drupalGet('/gallery/item/' . TEST_DATASET_ID_CNBR . '/' . TEST_ASSET_ID_ERROR);
+    $this->assertRaw('Asset not found', 'error page appear');
+    }
+}

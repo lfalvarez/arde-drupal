@@ -1,0 +1,59 @@
+<?php
+/**
+ * @file
+ * Dataset browse tests
+ */
+
+class dfmpDatasetViewerTesterBrowse extends DrupalWebTestCase {
+//  protected $privileged_user;
+  public static function getInfo() {
+    return array(
+      'name' => 'Dataset viewer test Browse',
+      'description' => 'Browse page',
+      'group' => 'DFMP',
+    );
+  }
+  public function setUp() {
+    $this->profile = 'dfmp';
+
+    parent::setUp();
+
+    drupal_flush_all_caches();
+  }
+
+  public function testDatasetBrowseMain() {
+      $query = array(
+        'limit' => 1,
+        'offset' => 0,
+      );
+      $assets = CkanApi::getInstance()->action('dfmp_all_assets', array(
+        'data' => $query
+      ));
+      $total = $assets[0]->dfmp_total;
+      $img = $assets[0]->dfmp_img->url;
+      $name = $assets[0]->asset->name;
+      $id = $assets[0]->asset->id;
+      $this->assertTrue(isset($total), t('Total row isset'));
+      $this->assertTrue(isset($img), t('Img row isset'));
+      $this->assertTrue(isset($name), t('Name row isset'));
+      $this->assertTrue(isset($id), t('Id row isset'));
+
+      $query = array(
+        'limit' => 1,
+        'offset' => 1,
+      );
+      $assets = CkanApi::getInstance()->action('dfmp_all_assets', array(
+        'data' => $query
+      ));
+      $total_2 = $assets[0]->dfmp_total;
+      $img_2 = $assets[0]->dfmp_img->url;
+      $name_2 = $assets[0]->asset->name;
+      $id_2 = $assets[0]->asset->id;
+      $this->assertTrue(isset($total_2), t('Total 2 row isset'));
+      $this->assertTrue(isset($img_2), t('Img 2 row isset'));
+      $this->assertTrue(isset($name_2), t('Name 2 row isset'));
+      $this->assertTrue(isset($id_2), t('Id 2 row isset'));
+
+      $this->assertTrue($id_2 != $id, t('Return new dataset'));
+    }
+}

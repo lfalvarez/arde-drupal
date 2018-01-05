@@ -1,0 +1,376 @@
+/* GALLERY SEARCH IMAGE PAGE VIEW */
+#viewer-gallery-view {
+
+  /* MOBILE SCREENS */
+  @include at-breakpoint($narrow-small) {
+    padding: 0 20px;
+    #gallery-top {
+      & .title-desc {
+        p {
+          min-height: 0px;
+        }
+      }
+    }
+
+    /* Refine button with number of images */
+    .dfmp-gallery-top-second {
+      float: none;
+      padding-top: 15px;
+      & ul.dfmp-gallery-top-second-list {
+        line-height: 1.5em;
+        li.dfmp-refine-search-btn {
+          float: none;
+          width: 100%;
+          padding-right: 0px;
+          margin: 25px 0 0 0;
+        }
+      }
+    }
+
+    /* Download button, right to refine button */
+    .download-collection {
+      float: none;
+      position: relative;
+      z-index: 1;
+    }
+    .dwn-box-download-button {
+      float: none;
+    }
+
+    /* Download box section with cancel and download button, hidden by default */
+    .download-collection-box {
+      & .dwn-box-btns {
+        & .dwn-box-cancel-button {
+          float: none;
+          margin-right: 0px;
+          padding-top: 10px;
+        }
+      }
+    }
+    
+    /* jQuery slide toggles bug fix for chrome */
+    .dfmp-serach-form {
+      overflow: visible !important;
+    }
+
+    /* Search form box section, hidden by default */
+    .dfmp-serach-form, .dfmp-no-results-form {
+      position: relative;
+      z-index: 10;
+      & .form-item-inline {
+        & > div {
+          padding-left: 0px;
+        }
+        & label {
+          float: none;
+          margin-left: 0px;
+        }
+        .sbHolder {
+          display: block;
+        }
+      }
+      & .search-include-description {
+        margin-left: 0px;
+      }
+      & .sbHolder {
+        & .sbOptions {
+          width: 282px;
+        }
+      }
+      & .float-right {
+        & .search-tags-wrap {
+          & label {
+            width: 100%;
+          }
+          & div[role="application"] {
+            float: left;
+            width: 58%;
+          }
+        }
+        & .tags-list {
+          & ul {
+            padding-left: 0px;
+          }
+        }
+      }
+      & .search-filters-submit {
+        float: none;
+        padding: 20px 20px 0px 20px;
+        & input {
+          width: 100%;
+        }
+      }
+      & .search-clear-button {
+        float: none;
+        width: 100%;
+        padding: 20px
+      }
+    }
+
+    /* Gallery section with search results */
+    #assetimimage {
+      .gallery-item {
+        max-width: 140px;
+      }
+      .view-gallery-1-item {
+        @include span-columns(6, 12);
+      }
+      .view-gallery-2-item {
+        @include span-columns(6 omega, 12);
+      }
+      .view-gallery-3-item {
+        @include span-columns(6, 12);
+      }
+      .view-gallery-4-item {
+        @include span-columns(6 omega, 12);
+      }
+    }
+  }
+
+ /* FOR 360px SCREENS */
+  @include at-breakpoint($narrow-middle) {
+    #assetimimage {
+      .gallery-item {
+        max-width: 200px;
+      }
+    }
+  }
+
+ /* FOR SMALL SCREENS */
+  @include at-breakpoint($narrow) {
+    #assetimimage {
+      .gallery-item {
+        max-width: 200px;
+      }
+    }
+  }
+
+  /* FOR TABLET SCREENS */
+  @include at-breakpoint($tablet) {
+    #assetimimage {
+      .gallery-item {
+        max-width: 300px;
+      }
+    }
+  }
+
+  /* FOR NORMAL SCREENS */
+  @include at-breakpoint($computer) {
+
+    /* Gallery single item grid config */
+    #assetimimage {
+      .gallery-item {
+        max-width: 300px;
+      }
+      .gallery-item {
+        @include span-columns(4, 12);
+        @include remove-omega;
+      }
+      .gallery-item:nth-child(3n) {
+        @include span-columns(4 omega, 12);
+      }
+    }
+  }
+
+  /* FOR WIDE SCREENS */
+  @include at-breakpoint($wide) {
+    .dfmp-gallery-top-second {
+        float: left;
+        padding-top: 0px;
+        & ul.dfmp-gallery-top-second-list {
+          line-height: 55px;
+          li.dfmp-refine-search-btn {
+            float: left;
+            width: auto;
+            padding-right: 12px;
+            margin: 10px 0 0 0;
+          }
+        }
+    }
+
+    /* Download button, right to refine button */
+    .download-collection {
+      float: right;
+    }
+    .dwn-box-download-button {
+      float: right;
+    }
+
+    /* Download box section with cancel and download button, hidden by default */
+    .download-collection-box {
+      & .dwn-box-btns {
+        & .dwn-box-cancel-button {
+          float: right;
+          margin-right: 10px;
+          padding-top: 0px;
+        }
+      }
+    }
+
+    /* Search form box section, hidden by default */
+    .dfmp-serach-form, .dfmp-no-results-form {
+      margin-top: 0px;
+      & .form-item-inline {
+        & > div {
+          padding-left: 68px;
+        }
+        & label {
+          float: left;
+          margin-left: -68px;
+        }
+        .sbHolder {
+          display: inline-block;
+        }
+      }
+      & .search-include-description {
+        margin-left: 68px;
+      }
+      & .float-right {
+        & .search-tags-wrap {
+          & label {
+            width: 68px;
+          }
+          & div[role="application"] {
+            float: none;
+            width: auto;
+          }
+        }
+        & .tags-list {
+          & ul {
+            padding-left: 68px;
+          }
+        }
+      }
+      & .search-filters-submit {
+        float: right;
+        padding: 16px 20px 20px 10px;
+        & input {
+          width: 268px;
+        }
+      }
+      & .search-clear-button {
+        float: right;
+        width: 172px;
+        padding: 16px 0 0 0;
+      }
+    }
+
+    /* Gallery section with search results */
+    #assetimimage {
+      .gallery-item {
+        max-width: 300px;
+      }
+      .gallery-item {
+        @include span-columns(3, 12);
+        @include remove-omega;
+      }
+      .gallery-item:nth-child(3n) {
+        @include span-columns(3, 12);
+        @include remove-omega;
+      }
+      .gallery-item:nth-child(4n) {
+        @include span-columns(3 omega, 12);
+      }
+    }
+  }
+}
+
+/* PAGER SETUP */
+
+#viewer-gallery-view + h2 + div.item-list-pager {
+
+  /* MOBILE SCREENS */
+  @include at-breakpoint($narrow-small) {
+    & ul {
+      padding: 0 20px;
+      & li {
+        display: none;
+      }
+      & li.next {
+        display: inline-block;
+        width: 102px;
+        text-align: center;
+        position: relative;
+        & a {
+          padding: 6px 15px 6px 10px;
+          &:after {
+            display: block;
+            content: "›";
+            font-size: 22px;
+            position: absolute;
+            top: 4px;
+            right: 27%;
+
+          }
+        }
+      }
+      & li.previous {
+        display: inline-block;
+        width: 102px;
+        text-align: center;
+        position: relative;
+        & a {
+          padding: 6px 10px 6px 15px;
+          &:before {
+            display: block;
+            content: "‹";
+            font-size: 22px;
+            position: absolute;
+            top: 4px;
+            left: 15%;
+
+          }
+        }
+      }
+    }
+  }
+
+  /* FOR WIDE SCREENS */
+  @include at-breakpoint($computer) {
+    & ul {
+      & li {
+        display: inline-block;
+      }
+      & li.next {
+        width: auto;
+        text-align: center;
+        position: relative;
+        & a {
+          padding: 6px 15px;
+          &:after {
+            display: block;
+            content: "›";
+            font-size: 14px;
+            position: absolute;
+            top: 5px;
+            right: 6px;
+
+          }
+        }
+      }
+      & li.previous {
+        width: auto;
+        text-align: center;
+        position: relative;
+        & a {
+          padding: 6px 15px;
+          &:before {
+            display: block;
+            content: "‹";
+            font-size: 14px;
+            position: absolute;
+            top: 5px;
+            left: 6px;
+
+          }
+        }
+      }
+    }
+  }
+}
+
+/* Autocomplete alts */
+div#autocomplete {
+  max-height: 500px;
+  overflow-y: auto;
+}

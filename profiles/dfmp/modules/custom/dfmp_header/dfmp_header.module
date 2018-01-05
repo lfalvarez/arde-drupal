@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the DFMP header feature.
+ */
+
+include_once 'dfmp_header.features.inc';

@@ -1,0 +1,222 @@
+<?php
+/**
+ * @file
+ * Code for the dfmp_dataset_viewer feature.
+ */
+
+include_once 'dfmp_dataset_viewer.features.inc';
+
+include('dfmp_dataset_viewer.inc');
+
+define('TWITTER_URL', 'http://twitter.com/');
+
+/**
+ * Implements of hook_ctools_plugin_directory().
+ */
+function dfmp_dataset_viewer_ctools_plugin_directory($owner, $plugin_type) {
+  if ($owner == 'ctools') {
+    return 'plugins/' . $plugin_type;
+  }
+}
+
+/**
+ * Implements of hook_menu().
+ */
+function dfmp_dataset_viewer_menu() {
+  $items = array();
+
+  $items['js/asset/mark/%/%'] = array(
+    'title' => 'CKAN AJAX MARK ACTION',
+    'page callback' => 'dfmp_dataset_viewer_mark_asset_inappropriate',
+    'page arguments' => array(3, 4),
+    'type' => MENU_LOCAL_TASK,
+    'access arguments' => array(TRUE),
+    'access callback' => TRUE,
+  );
+
+  return $items;
+}
+
+/**
+ * Marks assets as "inappropriate"
+ */
+function dfmp_dataset_viewer_mark_asset_inappropriate($id, $asset_id) {
+  $action = CkanApi::getInstance()->action('flag_asset', array(
+    'data' => array(
+      'id' => $id,
+      'assetID' => $asset_id,
+      'flag' => isset($_GET['reason']) ? $_GET['reason'] : '',
+    )
+  ));
+
+  drupal_json_output(array('success' => $action));
+  exit;
+}
+
+function dfmp_dataset_viewer_gallery_view_scroll($id) {
+
+  $offset = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] * IMAGES_PER_PAGE : 0;
+
+  $gallery = CkanApi::getInstance()->action('resource_items', array(
+    'data' => array(
+      'id' => $id,
+      'limit' => IMAGES_PER_PAGE,
+      'offset' => $offset,
+    )
+  ));
+  $gallery = _dfmp_dataset_viewer_prepare_gallery_view($gallery->records, $id);
+
+  print theme('dfmp_dataset_viewer_gallery_view_scroll', array(
+    'gallery' => $gallery,
+    'dataset_id' => $id,
+  ));
+  exit;
+}
+
+/**
+ * Implements of hook_theme().
+ */
+function dfmp_dataset_viewer_theme() {
+  return array(
+    'dfmp_dataset_viewer_user_resources' => array(
+      'template' => 'dfmp_dataset_viewer_user_resources',
+      'path' => drupal_get_path('module', 'dfmp_dataset_viewer') . '/theme',
+    ),
+    'dfmp_dataset_viewer_asset_details' => array(
+      'template' => 'dfmp_dataset_viewer_asset_details',
+      'path' => drupal_get_path('module', 'dfmp_dataset_viewer') . '/theme',
+    ),
+    'dfmp_dataset_viewer_assets_gallery' => array(
+      'template' => 'dfmp_dataset_viewer_assets_gallery',
+      'path' => drupal_get_path('module', 'dfmp_dataset_viewer') . '/theme',
+    ),
+    'dfmp_dataset_viewer_gallery_view' => array(
+      'template' => 'dfmp_dataset_viewer_gallery_view',
+      'path' => drupal_get_path('module', 'dfmp_dataset_viewer') . '/theme',
+    ),
+    'dfmp_dataset_viewer_gallery_view_scroll' => array(
+      'template' => 'dfmp_dataset_viewer_gallery_view_scroll',
+      'path' => drupal_get_path('module', 'dfmp_dataset_viewer') . '/theme',
+    ),
+    'dfmp_dataset_viewer_gallery_single_view' => array(
+      'template' => 'dfmp_dataset_viewer_gallery_single_view',
+      'path' => drupal_get_path('module', 'dfmp_dataset_viewer') . '/theme',
+    ),
+    'dfmp_dataset_viewer_image_render' => array(
+      'template' => 'dfmp_dataset_viewer_image_render',
+      'path' => drupal_get_path('module', 'dfmp_dataset_viewer') . '/theme',
+    ),
+    'dfmp_dataset_viewer_not_found_block' => array(
+      'template' => 'dfmp_dataset_viewer_not_found_block',
+      'path' => drupal_get_path('module', 'dfmp_dataset_viewer') . '/theme',
+    ),
+    'dfmp_dataset_viewer_asset_list_item' => array(
+      'template' => 'dfmp_dataset_viewer_asset_list_item',
+      'path' => drupal_get_path('module', 'dfmp_dataset_viewer') . '/theme',
+    )
+  );
+}
+
+/**
+ * Template preprocess for dfmp_dataset_viewer_gallery_view.tpl
+ */
+function dfmp_dataset_viewer_preprocess_dfmp_dataset_viewer_gallery_view(&$vars) {
+  // preg_match_all('/(https?:\/\/[^\s]+)/i', $vars['assets']->description, $matches);
+  // if (!empty($matches[0])) {
+  //   foreach ($matches[0] as $match) {
+  //     $vars['assets']->description = str_replace($match, '<a target="_blank" href="' . url($match) . '">' . $match . '</a>', $vars['assets']->description);
+  //   }
+  // }
+}
+
+function dfmp_dataset_viewer_preprocess_dfmp_dataset_viewer_asset_details(&$vars) {
+  if ($vars['asset']->mimetype) {
+    $type = explode('/', $vars['asset']->mimetype);
+
+    if (drupal_strtolower($type[0]) == 'image') {
+      $vars['image'] = theme('image', array(
+        'path' => str_replace('http://' , '/', $vars['asset']->url),
+      ));
+    }
+  }
+}
+
+/**
+ * Template preprocess for dfmp_dataset_viewer_gallery_single_view
+ */
+function dfmp_dataset_viewer_preprocess_dfmp_dataset_viewer_gallery_single_view(&$vars) {
+  // Find and replace links in text
+  preg_match_all('/(https?:\/\/[^\s]+)/i', $vars['asset']->metadata->text, $matches);
+  if (!empty($matches[0])) {
+    foreach ($matches[0] as $match) {
+      $vars['asset']->metadata->text = str_replace($match, '<a target="_blank" href="' . url($match) . '">' . $match . '</a>', $vars['asset']->metadata->text);
+    }
+  }
+  // Find and replace hashtags in text
+  preg_match_all('/(#[A-z](\w+)?)/i', $vars['asset']->metadata->text, $matches);
+  if (!empty($matches[0])) {
+    foreach ($matches[0] as $match) {
+      $vars['asset']->metadata->text = str_replace($match, l($match, 'https://twitter.com/search/' . str_replace('#', '%23', $match), array('attributes' => array('target' => '_blank'))), $vars['asset']->metadata->text);
+    }
+  }
+  $vars['tags'] = '';
+  
+  if (isset($vars['asset']->metadata->tags) && trim($vars['asset']->metadata->tags) !== '') {
+    foreach (explode(',', $vars['asset']->metadata->tags) as $tag) {
+      $vars['tags'] .= '<span>' . l($tag, 'gallery/search' , array('attributes' => array('target' => '_blank'), 'query' => array('search_tags' => $tag))) . '</span>';
+    }
+  }
+
+  if (isset($vars['asset']->metadata->rekognition_tags)) {
+    foreach ($vars['asset']->metadata->rekognition_tags as $rekog_tags) {
+      $tag_name = strtolower($rekog_tags->Name);
+      $vars['tags'] .= '<span>' . l($tag_name, 'gallery/search' , array('attributes' => array('target' => '_blank'), 'query' => array('search_tags' => $tag_name))) . '</span>';
+    }
+  }
+
+  if (empty($vars['tags'])) {
+    $vars['tags'] = t('No tags');
+  }
+}
+
+/**
+ * Returns mimetype of file from metadata
+ */
+function dfmp_dataset_viewer_get_mimetype_details($item) {
+  if (!empty($item->metadata->mimetype)) {
+    $type = explode('/', $item->metadata->mimetype);
+  }
+  elseif (!empty($item->metadata->type)) {
+    $type = explode('/', $item->metadata->type);
+  }
+  return !empty($type[0]) ? drupal_strtolower($type[0]) : FALSE;
+}
+
+/**
+ * Implements hook_preprocess_template().
+ */
+function dfmp_dataset_viewer_preprocess_dfmp_dataset_viewer_image_render(&$vars) {
+  $external = FALSE;
+  $source = '';
+  $path = '';
+
+  if (strpos($vars['item']->dfmp_img->url, 'http') !== FALSE) {
+    $req_res = drupal_http_request($vars['item']->dfmp_img->url, array('method' => 'HEAD'));
+
+    if ($req_res->code == 200) {
+      $external = TRUE;
+    }
+  }
+
+  if ($external) {
+    $source = 'imagecache_external';
+    $path = $vars['item']->dfmp_img->url;
+  }
+  elseif (file_exists(DRUPAL_ROOT . urldecode($vars['item']->dfmp_img->url))) {
+    $source = 'image_style';
+    $path = str_replace('/sites/default/files', 'public://', urldecode($vars['item']->dfmp_img->url));
+  }
+
+  $vars['source'] = $source;
+  $vars['path'] = $path;
+}

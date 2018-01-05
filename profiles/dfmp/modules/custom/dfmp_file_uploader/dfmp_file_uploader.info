@@ -1,0 +1,17 @@
+name = DFMP file uploader
+core = 7.x
+package = DFMP
+version = 7.x-1.1
+project = dfmp_file_uploader
+dependencies[] = ctools
+dependencies[] = dfmp_file_uploader
+dependencies[] = features
+dependencies[] = strongarm
+dependencies[] = ckan_api
+features[ctools][] = strongarm:strongarm:1
+features[features_api][] = api:2
+features[user_permission][] = access_file_uploading_page
+features[variable][] = jquery_update_jquery_version
+mtime = 1422628188
+
+files[] = dfmp_file_uploader.test

@@ -1,0 +1,35 @@
+<?php
+/**
+ * @file
+ * Code for the ckan_api module.
+ */
+include_once 'ckan_api.singleton.inc';
+
+/**
+ * Implements hook_menu().
+ */
+function ckan_api_menu() {
+  // Configure ckan instance. Includes: API-key, ...
+  $items['admin/config/content/ckan-api-settings'] = array(
+    'title' => 'CKAN settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ckan_conf_form'),
+    'access callback' => 'user_access',
+    'access arguments' => array('ckan set config'),
+    'file' => 'ckan_api.admin.inc',
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function ckan_api_permission() {
+  $permission = array(
+    'ckan set config' => array(
+      'title' => t('Set and change CKAN instance settings')
+    ),
+  );
+
+  return $permission;
+}

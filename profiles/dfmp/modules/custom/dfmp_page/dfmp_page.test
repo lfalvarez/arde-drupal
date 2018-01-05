@@ -1,0 +1,62 @@
+<?php
+/**
+ * @file
+ * Module tests
+ */
+
+/**
+ * Testing that required links are presented on homepage
+ */
+class DfmpUserHomePageLinks extends DrupalWebTestCase {
+
+  private $user = '';
+
+  public static function getInfo() {
+    return array(
+      'name' => 'DFMP Testing Homepage links',
+      'description' => 'DFMP Testing that required links are presented on homepage',
+      'group' => 'DFMP',
+    );
+  }
+
+  public function setUp() {
+    $this->profile = 'dfmp';
+    parent::setUp();
+    dfmp_setup_cleanup();
+    drupal_flush_all_caches();
+
+    $this->user = $this->drupalCreateUser($permissions = array('post comments'));
+  }
+
+  public function testHomepageAnonymous() {
+    $this->drupalGet('home');
+
+    $this->assertLink(t('#CBR'));
+    $this->assertLink(t('BROWSE'));
+    $this->assertLink(t('VISIT DFMP'));
+
+    $xpath = $this->buildXPathQuery('//form[@id=:id]', array(':id' => 'user-login-form'));
+    $this->assertFieldByXPath($xpath, NULL, t('Login form is presented for anonymous user.'));
+
+    $xpath = $this->buildXPathQuery('//form[@id=:id]', array(':id' => 'dfmp-search-result-form'));
+    $this->assertFieldByXPath($xpath, NULL, t('Search form is presented on the front page.'));
+
+    $xpath = $this->buildXPathQuery('//input[@id=:id]', array(':id' => 'edit-search-title'));
+    $this->assertFieldByXPath($xpath, NULL, t('Name field is here.'));
+
+    $xpath = $this->buildXPathQuery('//input[@id=:id]', array(':id' => 'edit-search-type-video'));
+    $this->assertFieldByXPath($xpath, NULL, t('Type field is here.'));
+
+    $xpath = $this->buildXPathQuery('//input[@id=:id]', array(':id' => 'edit-submit'));
+    $this->assertFieldByXPath($xpath, NULL, t('Submit button is here.'));
+
+    $this->assertLink(t('Register new account'));
+
+    $this->drupalLogin($this->user);
+
+    $this->drupalGet('home');
+
+    $this->assertLink(t('File uploader'));
+    $this->assertLink(t('My account'));
+  }
+}

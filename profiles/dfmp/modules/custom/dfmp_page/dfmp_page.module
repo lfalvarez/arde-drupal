@@ -1,0 +1,139 @@
+<?php
+/**
+ * @file
+ * Code for the dfmp_page feature.
+ */
+
+include_once 'dfmp_page.features.inc';
+/**
+ * Implements of hook_ctools_plugin_directory().
+ */
+function dfmp_page_ctools_plugin_directory($owner, $plugin_type) {
+  if ($owner == 'ctools') {
+    return 'plugins/' . $plugin_type;
+  }
+}
+
+
+/**
+ * Implements of hook_init().
+ */
+function dfmp_page_init() {
+  if (drupal_is_front_page()) {
+    drupal_add_js(drupal_get_path('module', 'dfmp_page') . '/theme/js/home-page.js');
+  }
+}
+
+/**
+ * Implements of hook_theme().
+ */
+function dfmp_page_theme() {
+  return array(
+    'dfmp_page_header' => array(
+      'template' => 'dfmp_page_header',
+      'path' => drupal_get_path('module', 'dfmp_page') . '/theme',
+    ),
+    'dfmp_homepage_subheader' => array(
+      'template' => 'dfmp_homepage_subheader',
+      'path' => drupal_get_path('module', 'dfmp_page') . '/theme',
+    ),
+    'dfmp_browse_collection' => array(
+      'template' => 'dfmp_browse_collection',
+      'path' => drupal_get_path('module', 'dfmp_page') . '/theme',
+    ),
+    'dfmp_browse_group' => array(
+      'template' => 'dfmp_browse_group',
+      'path' => drupal_get_path('module', 'dfmp_page') . '/theme',
+    ),
+    'dfmp_browse_group_image_render' => array(
+      'template' => 'dfmp_browse_group_image_render',
+      'path' => drupal_get_path('module', 'dfmp_page') . '/theme',
+    ),
+  );
+}
+
+
+/**
+ * Implements of hook_form_alter().
+ */
+function dfmp_page_form_alter(&$form, &$form_state, $form_id) {
+  if ($form_id == 'user_login_block' && drupal_is_front_page()) {
+    $form['title'] = array(
+      '#markup' => '<h2>Login</h2>',
+      '#weight' => -1000,
+    );
+
+    $form['links']['#weight'] = 1000;
+    $form['links']["#markup"] = '<ul><li class="first"><a href="/user/register" title="Create a new user account.">' . t('Register a new account') . '</a></li>
+                      <li class="last"><a href="/user/password" title="Request new password via e-mail.">' . t('Request new password') . '</a></li>
+                      </ul>';
+    $form['inputs_wrap'] = array(
+      '#type' => 'container',
+      '#tree' => FALSE,
+    );
+    $form['inputs_wrap']['name'] = $form['name'];
+    $form['inputs_wrap']['pass'] = $form['pass'];
+    $form['inputs_wrap']['name']['#attributes']['placeholder'] = t('Username');
+    $form['inputs_wrap']['pass']['#attributes']['placeholder'] = t('Password');
+    unset($form['name'], $form['pass']);
+    $form['actions']['submit']['#value'] = 'Login';
+    $form['#attributes'] = array('class' => array('clearfix'));
+  }
+}
+
+function dfmp_page_browse_collection_block () {
+  $groups_list = CkanApi::getInstance()->action('all_group_list');
+
+  foreach ($groups_list as $key => $item) {
+    $groups_list[$key]->rendered_image = theme('dfmp_browse_group_image_render', array('item' => $item));
+  }
+
+  return theme('dfmp_browse_collection', array('groups' => $groups_list));
+}
+
+function dfmp_page_browse_group_block($id) {
+  $groups_list = CkanApi::getInstance()->action('all_member_list', array(
+    'data' => array(
+      'id' => $id
+    ))
+  );
+
+  foreach ($groups_list->datasets_list as $key => $item) {
+    $groups_list->datasets_list[$key]->rendered_image = theme('dfmp_browse_group_image_render', array('item' => $item));
+  }
+  $msg_no_datasets = t('Sorry, but there are no datastes available in this group.');
+  $no_datasets = empty($groups_list->datasets_list) ? TRUE : FALSE;
+
+  return theme('dfmp_browse_group', array('group_title' => $groups_list->group_data->title, 'members_list' => $groups_list->datasets_list, 'msg' => $msg_no_datasets, 'no_datasets' => $no_datasets));
+}
+
+/**
+ * Implements hook_preprocess_template().
+ */
+function dfmp_page_preprocess_dfmp_browse_group_image_render(&$vars) {
+  $external = FALSE;
+  $source = '';
+  $path = '';
+  $image_path = isset($vars['item']->front_image) ? $vars['item']->front_image->url : $vars['item']->image_url;
+
+  if (strpos($image_path, 'http') !== FALSE) {
+    $req_res = drupal_http_request($image_path, array('method' => 'HEAD'));
+
+    if ($req_res->code == 200) {
+      $external = TRUE;
+    }
+  }
+
+  if ($external) {
+    $source = 'imagecache_external';
+    $path = $image_path;
+  }
+  elseif (file_exists(DRUPAL_ROOT . urldecode($image_path))) {
+    $source = 'image_style';
+    $path = str_replace('/sites/default/files', 'public://', urldecode($image_path));
+  }
+
+  $vars['source'] = $source;
+  $vars['path'] = $path;
+  $vars['placeholder_path'] = drupal_get_path('theme', 'dfmp') . '/img/placeholder.jpg';
+}

@@ -1,0 +1,128 @@
+<?php
+/**
+ * @file
+ */
+
+/**
+ * Implements hook_field_info().
+ *
+ * Provides the description of the field.
+ */
+function dfmp_field_form_field_info() {
+  return array(
+    // We name our field as the associative name of the array.
+    'dfmp_field_form_form_id' => array(
+      'label' => t('Form ID'),
+      'description' => t('Form ID.'),
+      'default_widget' => 'dfmp_field_form_text',
+      'default_formatter' => 'dfmp_field_form_simple_text',
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_is_empty().
+ *
+ * hook_field_is_emtpy() is where Drupal asks us if this field is empty.
+ * Return TRUE if it does not contain data, FALSE if it does. This lets
+ * the form API flag an error when required fields are empty.
+ */
+function dfmp_field_form_field_is_empty($item, $field) {
+  return empty($item['form_id']);
+}
+
+/**
+ * Implements hook_field_formatter_info().
+ * @see dfmp_field_form_field_formatter_view()
+ */
+function dfmp_field_form_field_formatter_info() {
+  return array(
+    // This formatter just displays the hex value in the color indicated.
+    'dfmp_field_form_simple_text' => array(
+      'label' => t('Rendered Form'),
+      'field types' => array('dfmp_field_form_form_id'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ * @see dfmp_field_form_field_formatter_info()
+ */
+function dfmp_field_form_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+
+  switch ($display['type']) {
+    // This formatter simply outputs the field as text and with a color.
+    case 'dfmp_field_form_simple_text':
+      foreach ($items as $delta => $item) {
+        $form = drupal_get_form($item['form_id']);
+        $element[$delta] = $form;
+      }
+      break;
+  }
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_widget_info().
+ *
+ *
+ * @see dfmp_field_form_field_widget_form()
+ */
+function dfmp_field_form_field_widget_info() {
+  return array(
+    'dfmp_field_form_text' => array(
+      'label' => t('Form ID'),
+      'field types' => array('dfmp_field_form_form_id'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_widget_form().
+ *
+ * hook_widget_form() is where Drupal tells us to create form elements for
+ * our field's widget.
+ *
+ */
+function dfmp_field_form_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+  $value = isset($items[$delta]['form_id']) ? $items[$delta]['form_id'] : '';
+
+  $widget = $element;
+  $widget['#delta'] = $delta;
+
+  switch ($instance['widget']['type']) {
+
+    case 'dfmp_field_form_text':
+      $widget += array(
+        '#type' => 'textfield',
+        '#default_value' => $value,
+      );
+      break;
+
+  }
+
+  $element['form_id'] = $widget;
+  return $element;
+}
+
+
+/**
+ * Implements hook_field_widget_error().
+ *
+ * hook_field_widget_error() lets us figure out what to do with errors
+ * we might have generated in hook_field_validate(). Generally, we'll just
+ * call form_error().
+ *
+ * @see dfmp_field_form_field_validate()
+ * @see form_error()
+ */
+function dfmp_field_form_field_widget_error($element, $error, $form, &$form_state) {
+  switch ($error['error']) {
+    case 'dfmp_field_form_invalid':
+      form_error($element, $error['message']);
+      break;
+  }
+}

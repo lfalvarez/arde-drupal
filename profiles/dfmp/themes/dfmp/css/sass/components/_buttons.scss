@@ -1,0 +1,114 @@
+.arrow-btn {
+  font-family: "Open Sans";
+  font-size: 13px;
+  color: white;
+  &:focus,
+  &:hover {
+    color: #ede112;
+    text-decoration: none;
+  }
+  &:before {
+    @include sprite-icon(arrow_left);
+    content: "";
+    display: inline-block;
+    padding-right: 10px;
+  }
+}
+
+
+.download-btn {
+  position: relative;
+  &:before {
+    @include sprite-icon(download);
+    content: "";
+    display: inline-block;
+    padding-right: 10px;
+    position: absolute;
+    top: 8px;
+    left: 15.5%;
+  }
+}
+.dfmp-pink-btn {
+  @include background-image(linear-gradient(to bottom, #9f187a, #80015d));
+  color: white;
+  display: block;
+  min-width: 140px;
+  padding: 7px;
+  text-align: center;
+  font-family: Open Sans;
+  font-weight: bold;
+  &.clicked,
+  &:focus,
+  &:hover {
+    @include background-image(linear-gradient(to bottom, #870463, #870463));
+    color: white;
+    text-decoration: none;
+  }
+}
+
+.dfmp-metal-btn {
+  @include background-image(linear-gradient(to bottom, #637087, #505A70));
+  color: white;
+  display: block;
+  min-width: 140px;
+  padding: 6px;
+  text-align: center;
+  font-family: Open Sans;
+  margin: 5px 0px;
+  &.clicked,
+  &:focus,
+  &:hover {
+    @include background-image(linear-gradient(to bottom, #505A70, #637087));
+    color: white;
+    text-decoration: none;
+  }
+}
+
+.dwn-btn-wide {
+  &:before {
+    @include sprite-icon(download);
+    margin-bottom: -5px;
+    background-position: 0 -30px;
+    content: "";
+    display: inline-block;
+    height: 19px;
+    padding-right: 10px;
+    width: 16px;
+  }
+}
+
+#dfmp-file-uploader-dwn-collection {
+  & input[type='submit'] {
+    display: none;
+  }
+  & #dwn-col-label-button {
+    @include background-image(linear-gradient(to bottom, #099a8d, #087a7d));
+    padding: 0px 10px;
+    color: white;
+    display: block;
+    margin: 5px 0;
+    font-family: "Open Sans",sans-serif;
+    font-size: 14px;
+    line-height: 35px;
+    font-weight: 600;
+    text-align: center;
+    text-shadow: none;
+    border: 0px;
+    border-radius: 0px;
+    cursor: pointer;
+    position: relative;
+    &:before {
+      @include sprite-icon(download);
+      content: "";
+      display: inline-block;
+      padding-right: 10px;
+      margin-bottom: -5px;
+    }
+    &:hover {
+      background-image:none;
+      background-color: #087a7d;
+      text-decoration: none;
+      color: white;
+    }
+  }
+}

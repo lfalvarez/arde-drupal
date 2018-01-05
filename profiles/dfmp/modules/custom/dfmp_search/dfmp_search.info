@@ -1,0 +1,14 @@
+name = DFMP Search
+core = 7.x
+package = DFMP
+dependencies[] = ctools
+dependencies[] = date
+dependencies[] = date_api
+dependencies[] = date_popup
+dependencies[] = page_manager
+dependencies[] = dfmp_dataset_viewer
+features[ctools][] = page_manager:pages_default:1
+features[features_api][] = api:2
+features[page_manager_pages][] = search_page
+files[] = dfmp_search.test
+mtime = 1426600404

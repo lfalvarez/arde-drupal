@@ -1,0 +1,607 @@
+<?php
+/**
+ * @file
+ * Code for the dfmp_file_uploader feature.
+ */
+
+include_once 'dfmp_file_uploader.features.inc';
+
+define('UPLOADER_ITEMS_PER_PAGE', 10);
+
+
+/**
+ * Implements hook_menu().
+ */
+function dfmp_file_uploader_menu() {
+  $items['dfmp/file_uploader'] = array(
+    'title' => 'File uploader',
+    'page callback' => 'dfmp_file_uploader_callback',
+    'access arguments' => array('access_file_uploading_page'),
+  );
+
+  $items['dfmp/download/%'] = array(
+    'title' => 'File downloader',
+    'page callback' => 'dfmp_file_download_callback',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+  );
+
+  $items['dfmp/file_uploader/upload'] = array(
+    'title' => 'File uploader',
+    'page callback' => 'dfmp_file_uploader_upload_callback',
+    'access arguments' => array('access_file_uploading_page'),
+  );
+
+  $items['js/file_update'] = array(
+    'title' => 'File uploader',
+    'page callback' => 'dfmp_file_update_callback',
+    'access arguments' => array('access_file_uploading_page'),
+    'delivery callback' => 'ajax_deliver',
+    'theme callback' => 'ajax_base_page_theme',
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['download/collection'] = array(
+    'title' => 'Download Collection',
+    'page callback' => 'dfmp_file_download_collection',
+    'access callback' => TRUE,
+  );
+
+  $items['js/file_delete'] = array(
+    'title' => 'File delete',
+    'page callback' => 'dfmp_file_delete_callback',
+    'access arguments' => array('access_file_uploading_page'),
+    'delivery callback' => 'ajax_deliver',
+    'theme callback' => 'ajax_base_page_theme',
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+function dfmp_file_download_callback($path) {
+  $file = base64_decode($path);
+  $match = preg_match('/^(http|https):\/\//', $file);
+  $headers = array();
+
+  if ($match) {
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $file);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_VERBOSE, 1);
+    curl_setopt($ch, CURLOPT_HEADER, 1);
+
+    $response = curl_exec($ch);
+    $header_text = substr($response, 0, strpos($response, "\r\n\r\n"));
+
+    foreach (explode("\r\n", $header_text) as $i => $line) {
+      if ($i === 0) {
+        $headers['http_code'] = $line;
+      }
+      else {
+        list ($key, $value) = explode(': ', $line);
+        $headers[$key] = $value;
+      }
+    }
+  }
+  else {
+    $file = DRUPAL_ROOT . '/' . urldecode($file);
+    $headers['Content-Length'] = filesize($file);
+  }
+
+  header('Content-Description: File Transfer');
+  header('Content-Type: application/octet-stream');
+  header('Content-Disposition: attachment; filename='.basename(str_replace(" ", "_", $file)));
+  header('Expires: 0');
+  header('Cache-Control: must-revalidate');
+  header('Pragma: public');
+  header('Content-Length: ' . $headers['Content-Length']);
+  readfile($file);
+  exit;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function dfmp_file_uploader_permission() {
+  return array(
+    'access_file_uploading_page' => array(
+      'title' => t('Acces file uploading page'),
+      'description' => t('Access'),
+    ),
+  );
+}
+
+/*
+ * Implement hook_theme().
+ */
+function dfmp_file_uploader_theme() {
+  return array(
+      'dfmp_file_uploader' => array(
+          'template' => 'dfmp-file-uploader',
+          'path' => drupal_get_path('module', 'dfmp_file_uploader') . '/theme',
+      ),
+      'dfmp_file_uploader_files_list' => array(
+        'template' => 'dfmp-file-uploader-files-list',
+        'path' => drupal_get_path('module', 'dfmp_file_uploader') . '/theme',
+      ),
+  );
+}
+
+function dfmp_file_uploader_dwn_collection($form, &$form_state, $values, $get) {
+
+  $form = array();
+  $form['#tree'] = TRUE;
+  $form['#action'] = url('download/collection', array('query' => $get));
+  foreach ($values as $key => $value) {
+    $form['file_url'][$key] = array(
+      '#type' => 'hidden',
+      '#default_value' => $value
+    );
+  }
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Download displayed images'),
+    '#attributes' => array(
+      'id' => 'dwn-collection-submit',
+      'class' => array('btn-blue', 'download-btn', 'dwn-btn-wide')
+    ),
+    '#prefix' => '<label for="dwn-collection-submit" id="dwn-col-label-button">' . t('Download displayed images'),
+    '#suffix' => '</label>'
+  );
+
+  return $form;
+}
+
+function dfmp_file_download_collection() {
+  if (isset($_POST['file_url']) && !empty($_POST['file_url'])) {
+    $get = $_GET;
+    $tmp_path = file_directory_temp();
+    $tmp_file = tempnam(DRUPAL_ROOT . '/' . $tmp_path, '');
+    $zip = new ZipArchive();
+    $zip->open($tmp_file, ZipArchive::CREATE);
+
+    foreach($_POST['file_url'] as $key => $record) {
+      if ($key < IMAGES_PER_PAGE) {
+        $zip->addFile(DRUPAL_ROOT . $record, 'collection/' . basename(DRUPAL_ROOT . $record));
+      }
+    }
+
+    $zip->close();
+    $cbr_collection = $get['col_title'] ? $get['col_title'] : ($get['search_title'] ? $get['search_title'] : 'collection');
+    $filename = $cbr_collection . "_" . date("Y-m-d_H-i-s", time()) . ".zip";
+    header('Content-Type: application/zip');
+    header('Content-disposition: attachment; filename=' . $filename);
+    header('Content-Length: ' . filesize($tmp_file));
+    readfile($tmp_file);
+    exit;
+  }
+  else {
+    return t('Nothing to do here.');
+  }
+}
+
+function dfmp_file_uploader_check_local_files($assets) {
+  $data = array();
+  foreach($assets->records as $record) {
+    $url = urldecode($record->url);
+    $match = preg_match('/^(http|https):\/\//', $url);
+    if (!$match) {
+      if (file_exists(DRUPAL_ROOT . $url)) {
+        $data[] = $url;
+      }
+    }
+  }
+
+  return $data;
+}
+
+function dfmp_file_uploader_callback() {
+  $page = isset($_GET['page']) && is_numeric($_GET['page']) ? $_GET['page'] : 0;
+  $direction = isset($_GET['direction']) ? $_GET['direction'] : '';
+  $order = isset($_GET['order']) ? $_GET['order'] : '';
+  $uploader = new stdClass();
+  $uploader->requested_objects = array();
+  $vars['resources_user'] = __dfmp_file_uploader_get_resource_files($uploader, NULL, array('offset' => $page * UPLOADER_ITEMS_PER_PAGE, 'limit' => UPLOADER_ITEMS_PER_PAGE, 'sort' => $direction, 'sort_key' => $order));
+  $query_data = $_GET;
+  $vars['orderBy'] = $query_data['order'];
+  unset($query_data['q']);
+  unset($query_data['direction']);
+  unset($query_data['order']);
+  $vars['get'] = $query_data;
+  $vars['query_sort_path'] = isset($_GET['page']) || isset($_GET['ajaxedPager']) ? '&' : '?';
+  $vars['sortHow'] =  isset($_GET['direction']) && $_GET['direction'] == 'DESC' ? 'ASC' : 'DESC';
+  if ( count($vars['resources_user']) ){
+    $vars['user_own_gallery_id'] = $vars['resources_user'][0]->id;
+  }
+  try {
+    $vars['license_list'] = CkanApi::getInstance()->action('license_list', array('data' => array()));
+  } catch (ckan_api_CKANSideError $e) {
+    $vars['license_list'] = array();
+  }
+
+  if (!empty($vars['resources_user'][0]->total)) {
+    pager_default_initialize($vars['resources_user'][0]->total, UPLOADER_ITEMS_PER_PAGE);
+    $vars['pager'] = theme('pager', array('quantity' => 5));
+
+    $vars['max_pages'] = ceil($vars['resources_user'][0]->total/ UPLOADER_ITEMS_PER_PAGE);
+  }
+  if ($_GET['ajaxedPager']) {
+    print theme('dfmp_file_uploader_files_list', $vars);
+    die;
+  }
+  if ((empty($vars['resources_user'][0]->total) || $page > $vars['max_pages'] - 1) && isset($_GET['page'])) {
+    $get = $_GET;
+    unset($get['page'], $get['q']);
+    drupal_goto($_GET['q'], array('query' => $get));
+  }
+
+  // Check if it is AJAX actiction and return part of content
+  if (isset($_POST['uploader_action']) && ($_POST['uploader_action'] == 'refresh')) {
+    print theme('dfmp_file_uploader_files_list', $vars);
+    die();
+  }
+  elseif (isset($_POST['uploader_action']) && ($_POST['uploader_action'] == 'delete')) {
+    dfmp_file_delete_callback();
+    print theme('dfmp_file_uploader_files_list', $vars);
+    die();
+  }
+
+  $dfmp_tags_prepare = CkanApi::getInstance()->action( 'dfmp_tags');
+  foreach ($dfmp_tags_prepare as $tag) {
+    $dfmp_tags[] = $tag;
+  }
+
+  $vars['file_size'] = ini_get('upload_max_filesize');
+  drupal_add_js(array('file_uploader_max' => $vars['file_size'], 'dfmp_tags' => $dfmp_tags), 'setting');
+  drupal_add_css(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/css/bootstrap-progressbar-3.2.0.css');
+  drupal_add_css('//blueimp.github.io/Gallery/css/blueimp-gallery.min.css', 'external');
+  drupal_add_css(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/css/jquery.fileupload.css', 'file');
+  drupal_add_css(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/css/jquery.fileupload-ui.css', 'file');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/vendor/jquery.ui.widget.js');
+  drupal_add_js('//blueimp.github.io/JavaScript-Templates/js/tmpl.min.js', 'external');
+  drupal_add_js('//blueimp.github.io/JavaScript-Load-Image/js/load-image.all.min.js', 'external');
+  drupal_add_js('//blueimp.github.io/JavaScript-Canvas-to-Blob/js/canvas-to-blob.min.js', 'external');
+  drupal_add_js('//netdna.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js', 'external');
+  drupal_add_js('//blueimp.github.io/Gallery/js/jquery.blueimp-gallery.min.js', 'external');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/jquery.iframe-transport.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/jquery.fileupload.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/jquery.fileupload-process.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/jquery.fileupload-image.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/jquery.fileupload-audio.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/jquery.fileupload-video.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/jquery.fileupload-validate.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/jquery.fileupload-ui.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/main.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/js/jquery-ui.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/upload_single.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/js/jquery.placeholder.1.3.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/js/upload_init.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/js/jqxcore.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/js/jqxcombobox.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/js/jqxbuttons.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/js/jqxlistbox.js');
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/js/jqxscrollbar.js');
+  drupal_add_css(drupal_get_path('module', 'dfmp_file_uploader') . '/css/jqx.custom.css');
+//  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/md5.js');
+//  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/ut8_encode.js');
+
+  return theme('dfmp_file_uploader', $vars);
+}
+
+function dfmp_file_uploader_upload_callback() {
+  error_reporting(E_ALL | E_STRICT);
+  require_once('uploader_lib/UploadHandler.php');
+  $upload_handler = new UploadHandler();
+}
+
+function dfmp_file_uploader_preprocess_dfmp_file_uploader(&$vars) {
+  $direction = isset($_GET['direction']) ? $_GET['direction'] : '';
+  $order = isset($_GET['order']) ? $_GET['order'] : '';
+
+  drupal_add_js(drupal_get_path('module', 'dfmp_file_uploader') . '/uploader_lib/js/md5.js');
+
+  $page = isset($_GET['page']) && is_numeric($_GET['page']) ? $_GET['page'] : 0;
+
+  $uploader = new stdClass();
+  $uploader->requested_objects = array();
+
+  $resources = __dfmp_file_uploader_get_resource_files($uploader, NULL, array('offset' => $page * UPLOADER_ITEMS_PER_PAGE, 'limit' => UPLOADER_ITEMS_PER_PAGE, 'sort' => $direction, 'sort_key' => $order));
+  $vars['resources_user'] = $resources;
+  if ( count($resources) ){
+    $vars['user_own_gallery_id'] = $resources[0]->id;
+  }
+  if (!empty($resources[0]->total)) {
+    pager_default_initialize($resources[0]->total, UPLOADER_ITEMS_PER_PAGE);
+    $vars['pager'] = theme('pager', array('quantity' => 5));
+  }
+  try {
+    $license_list = CkanApi::getInstance()->action('license_list', array('data' => array()));
+  }
+  catch (ckan_api_CKANSideError $e) {
+    $vars['license_list'] = array();
+    return;
+  }
+
+  $license_data = array();
+  foreach ($license_list as $license) {
+    $license_data[] = array(
+      'title' => $license->title,
+      'id' => $license->id
+    );
+  }
+
+  $vars['license_list'] = json_encode($license_data);
+}
+
+/**
+ * Updates assets
+ *
+ * @param null $data
+ * @param null $user
+ */
+function dfmp_file_update_callback($data = NULL, $user = NULL) {
+  // for simpletest
+  if (!$user) {
+    global $user;
+
+    $user = user_load($user->uid);
+  }
+  else {
+    $_POST = $data;
+  }
+
+  if (isset($_POST['filesUpdate'])) {
+
+    $options = array(
+      'data' => array('items' => array()),
+      'api_key' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+    );
+
+    foreach ($_POST['filesUpdate'] as $resource) {
+
+      $ids = explode('__', $resource['resource_id']);
+
+      $options['data']['items'][] = array(
+        'id' => reset($ids),
+        'assetID' => end($ids),
+        'license' => $resource['license'],
+        'description' => $resource['description'],
+        'tags' => $resource['tags'],
+        'name' => $resource['name']
+      );
+
+      // prepares files
+      foreach ($options['data']['items'] as &$item) {
+        __dfmp_file_uploader_file_metadata_prepare($item);
+      }
+    }
+    $action = CkanApi::getInstance()->action('user_update_asset', $options);
+  }
+}
+
+/**
+ * Removes assets
+ *
+ * @param null $data
+ * @param null $user
+ */
+function dfmp_file_delete_callback($data = NULL, $user = NULL) {
+  // for simpletest
+  if (!$user) {
+    global $user;
+
+    $user = user_load($user->uid);
+  }
+  else {
+    $_POST = $data;
+  }
+
+  if (isset($_POST['filesUpdate'])) {
+
+    $options = array(
+      'data' => array('items' => array()),
+      'api_key' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+    );
+
+    foreach ($_POST['filesUpdate'] as $resource) {
+
+      $ids = explode('__', $resource['resource_id']);
+
+      $options['data']['items'][] = array(
+        'id' => reset($ids),
+        'assetID' => end($ids),
+      );
+    }
+    $action = CkanApi::getInstance()->action('user_remove_asset', $options);
+  }
+}
+
+/**
+ * Requests user assets from CKAN and retuns files fo display
+ *
+ * @param $uploader
+ * @return array
+ */
+function __dfmp_file_uploader_get_resource_files(&$uploader, $user = NULL, $opts = array()) {
+  if (!$user) {
+    global $user;
+
+    $user = user_load($user->uid);
+  }
+
+  if (!$uploader->requested_objects) {
+    // Request files from CKAN
+    $options = array(
+      'api_key' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+      'data' => $opts,
+    );
+
+    $datasets = CkanApi::getInstance()->action('user_get_assets', $options);
+
+    $uploader->requested_objects = $datasets;
+  }
+  else {
+    $datasets = $uploader->requested_objects;
+  }
+
+  if (!$datasets) {
+    return array();
+  }
+
+  $license_types = __dfmp_file_uploader_request_license_list();
+
+  return __dfmp_file_uploader_fetch_data_from_response($datasets, $license_types);
+}
+
+/**
+ * @param $datasets
+ * @param $license_types
+ * @return array
+ */
+function __dfmp_file_uploader_fetch_data_from_response($resources, $license_types) {
+  $files = array();
+  foreach ($resources as $resource) {
+    $file = new stdClass();
+    $file->name = $resource->metadata->name;
+    $file->size = $resource->metadata->size;
+    $file->url = str_replace('http://', '/', $resource->metadata->url);
+    $file->thumbnailUrl = $resource->metadata->thumbnailUrl;
+    $file->deleteUrl = '/dfmp/file_uploader/upload?file=' . $resource->metadata->name . '&id=' . $resource->parent_id . '&assetID=' . $resource->assetID;
+    $file->deletType = 'DELETE';
+    $file->license = $resource->metadata->license;
+    $file->license_types = $license_types;
+    $file->id = $resource->parent_id;
+    $file->assetID = $resource->assetID;
+    $file->description = $resource->metadata->description;
+    $file->tags = $resource->metadata->tags;
+    $file->dateCreated = $resource->lastModified;
+    $file->total = !empty($resource->total) ? $resource->total : 0;
+    $file->type = $resource->metadata->type;
+    $files[] = $file;
+  }
+
+  return $files;
+}
+
+/**
+ * @return array
+ */
+function __dfmp_file_uploader_request_license_list() {
+  try {
+    $license_types = CkanApi::getInstance()->action('license_list', array('data' => array()));
+  } catch (ckan_api_CKANSideError $e) {
+    $license_types = array();
+  }
+
+  return $license_types;
+}
+
+/**
+ * Returns an array of latitude and longitude from the Image file
+ * @param image $file
+ * @return multitype:number |boolean
+ */
+function __dfmp_file_uploader_read_gps_location($file) {
+  if (is_file($file)) {
+    $info = exif_read_data($file);
+    if (isset($info['GPSLatitude']) && isset($info['GPSLongitude']) &&
+      isset($info['GPSLatitudeRef']) && isset($info['GPSLongitudeRef']) &&
+      in_array($info['GPSLatitudeRef'], array('E', 'W', 'N', 'S')) && in_array($info['GPSLongitudeRef'], array('E', 'W', 'N', 'S'))) {
+
+      $GPSLatitudeRef  = drupal_strtolower(trim($info['GPSLatitudeRef']));
+      $GPSLongitudeRef = drupal_strtolower(trim($info['GPSLongitudeRef']));
+
+      $lat_degrees_a = explode('/', $info['GPSLatitude'][0]);
+      $lat_minutes_a = explode('/', $info['GPSLatitude'][1]);
+      $lat_seconds_a = explode('/', $info['GPSLatitude'][2]);
+      $lng_degrees_a = explode('/', $info['GPSLongitude'][0]);
+      $lng_minutes_a = explode('/', $info['GPSLongitude'][1]);
+      $lng_seconds_a = explode('/', $info['GPSLongitude'][2]);
+
+      $lat_degrees = $lat_degrees_a[0] / $lat_degrees_a[1];
+      $lat_minutes = $lat_minutes_a[0] / $lat_minutes_a[1];
+      $lat_seconds = $lat_seconds_a[0] / $lat_seconds_a[1];
+      $lng_degrees = $lng_degrees_a[0] / $lng_degrees_a[1];
+      $lng_minutes = $lng_minutes_a[0] / $lng_minutes_a[1];
+      $lng_seconds = $lng_seconds_a[0] / $lng_seconds_a[1];
+
+      $lat = (float) $lat_degrees + ((($lat_minutes * 60) + ($lat_seconds)) / 3600);
+      $lng = (float) $lng_degrees + ((($lng_minutes * 60) + ($lng_seconds)) / 3600);
+
+      //If the latitude is South, make it negative.
+      //If the longitude is west, make it negative
+      $GPSLatitudeRef  == 's' ? $lat *= -1 : '';
+      $GPSLongitudeRef == 'w' ? $lng *= -1 : '';
+
+      return array(
+        'lat' => $lat,
+        'lng' => $lng
+      );
+    }
+  }
+  return FALSE;
+}
+
+/**
+ * Prepares text values
+ * @param $data
+ */
+function __dfmp_file_uploader_file_metadata_prepare(&$data) {
+  $values_to_be_checked = array('name', 'description', 'tags');
+
+  foreach ($data as $key => &$param) {
+    if (is_string($param) && in_array($key, $values_to_be_checked)) {
+      $param = htmlentities($param);
+    }
+  }
+}
+
+/**
+ * Returns an array saved files.
+ */
+function __dfmp_file_uploader_saved_files($files) {
+  global $user;
+
+  $user = user_load($user->uid);
+
+  $saved_files = array();
+  foreach ($files as $file) {
+
+    // Gets geolocation data if exists
+    $file->geoLocation = array();
+    if ($coords = __dfmp_file_uploader_read_gps_location(DRUPAL_ROOT . $file->url)) {
+      $file->geoLocation = array(
+        'lat' => $coords['lat'],
+        'lng' => $coords['lng'],
+      );
+    }
+
+    // posts assets to CKAN
+    $options = array(
+      'data' => array(
+        'name' => $file->name,
+        'size' => $file->size,
+        'type' => $file->type,
+        'url' => $file->url,
+        'geoLocation' => $file->geoLocation,
+        'thumbnailUrl' => $file->thumbnailUrl,
+        'license' => $file->license,
+        'description' => $file->description,
+        'tags' => $file->tags,
+      ),
+      'api_key' => $user->field_user_api_key[LANGUAGE_NONE][0]['value'],
+    );
+
+    // prepares file metadata
+    __dfmp_file_uploader_file_metadata_prepare($options['data']);
+
+    $resource = CkanApi::getInstance()->action('user_add_asset', $options);
+
+    $license_types = __dfmp_file_uploader_request_license_list();
+
+    $saved_files = array_merge(__dfmp_file_uploader_fetch_data_from_response(array($resource), $license_types), $saved_files);
+  }
+
+  return $saved_files;
+}

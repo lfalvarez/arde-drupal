@@ -1,0 +1,147 @@
+
+/* GALLERY SINGLE IMAGE PAGE VIEW */
+#gallery-single-view {
+
+  /* MOBILE SCREENS */
+  @include at-breakpoint($narrow-small) {
+
+    /* Image with go back link */
+    #two-66-33-top-wrapper-single-view {
+      & .image-center {
+        text-align: center;
+        margin: 0px;
+      }
+      & .single-image-back {
+        width: 600px;
+        margin: 0 auto;
+      }
+      & .arrow-btn {
+        visibility: hidden;
+        left: 15px;
+        top: 10px;
+        &:before {
+          background-image: url('../img/arrow_left_bg.png');
+          visibility: visible;
+          width: 24px;
+          height: 24px;
+        }
+      }
+    }
+
+    /* Single image page main content */
+    #two-66-33-middle-wrapper-single-view {
+      & .container {
+        & h1 {
+          line-height: 34px;
+        }
+        padding: 0px;
+        &:before {
+          display: none;
+        }
+        .two-66-33-first {
+          @include span-columns(12 omega, 12);
+          padding: 0 20px;
+          margin-bottom: 30px;
+          & .gallery-license {
+            float: none;
+            & p {
+              line-height: 22px;
+            }
+          }
+          & .gallery-tags {
+            padding: 0px;
+            float: none;
+            & p {
+            	margin: 0px;
+              max-width: 500px;
+            }
+          }
+        }
+        .two-66-33-second {
+          max-width: 100%;
+          padding: 0 20px 50px;
+          min-height: auto;
+          & .download-btn {
+          	margin: 25px 0 20px 0;
+          }
+        }
+      }
+    }
+  }
+
+  /* FOR NORMAL SCREENS */
+  @include at-breakpoint($computer) {
+
+    /* Image with go back link */
+    #two-66-33-top-wrapper-single-view {
+      & .image-center {
+        margin: 10px 20px 20px;
+      }
+      & .single-image-back {
+        margin-top: 9px;
+      }
+      & .arrow-btn {
+        visibility: visible;
+        position: static;
+        &:before {
+          background-image: url('../img/sprite/arrow_left.png');
+          visibility: visible;
+          width: 6px;
+          height: 10px;
+        }
+      }
+      a.fancybox_gallery {
+        img {
+          max-width: 800px;
+        }
+      }
+    }
+
+    /* Single image page main content */
+    #two-66-33-middle-wrapper-single-view {
+      & .container {
+        .two-66-33-first {
+          @include span-columns(7, 12);
+        }
+        .two-66-33-second {
+          @include span-columns(5 omega, 12);
+          min-height: inherit;
+        }
+      }
+    }
+  }
+
+  /* FOR WIDE SCREENS */
+  @include at-breakpoint($wide) {
+    #two-66-33-top-wrapper-single-view {
+      & .arrow-btn {
+        position: absolute;
+        margin-left: 0px;
+        left: 40px;
+        top: 12px;
+      }
+    }
+    #two-66-33-middle-wrapper-single-view {
+      & .container {
+        &:before {
+          display: block;
+        }
+        .two-66-33-first {
+          @include span-columns(8, 12);
+          & .gallery-license {
+            float: left;
+          }
+          & .gallery-tags {
+            padding-left: 150px;
+            float: left;
+          }
+        }
+        .two-66-33-second {
+          @include span-columns(4 omega, 12);
+          max-width: 283px;
+          padding: 25px 0 0 20px;
+        }
+      }
+    }
+  }
+}

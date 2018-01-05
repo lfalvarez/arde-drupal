@@ -1,0 +1,87 @@
+.page-browse-images .gallery-item {
+    width: 19.84%;
+    display: inline-block;}
+#assetimimage .top-bar, #assetimimage .pulse-wrap {
+    position: fixed;
+    background-color: #000;
+    padding-top: 30px;
+    height: 120px;
+    width: 100%;
+    z-index: 100;
+    text-align: center;
+    vertical-align: middle;
+    color: red;
+    -webkit-transition: opacity 1s;
+    -o-transition: opacity 1s;
+    transition: opacity 1s;}
+#assetimimage .top-bar{
+    top: 0;
+    opacity: 0.4;}
+#assetimimage .top-bar:hover, .gallery-item:hover .dfmp-details,.gallery-item:hover .dfmp-hd {
+    opacity: 1;}
+#assetimimage {
+    padding-top: 120px;}
+#assetimimage .pulse-wrap{
+    left: 0;
+    display: none;
+    padding: 0;
+    height: 100px;
+    bottom:0;}
+#assetimimage .pulse{
+    height: 100%;
+    width: 200px;
+    display: inline-block;
+    margin-left:-100px;
+    }
+@-webkit-keyframes pulse {
+    0% {clip: rect(0, 0, 100px, 0);}
+    10% {clip: rect(0, 66px, 100px, 0);}
+    38% {clip: rect(0, 133px, 100px, 0);}
+    48% {clip: rect(0, 200px, 100px, 0);}
+    52% {clip: rect(0, 200px, 100px, 0);}
+    62% {clip: rect(0, 200px, 100px, 66px);}
+    90% {clip: rect(0, 200px, 100px, 133px);}
+    100% {clip: rect(0, 200px, 100px, 200px);}}
+@keyframes pulse {
+    0% {clip: rect(0, 0, 100px, 0);}
+    10% {clip: rect(0, 66px, 100px, 0);}
+    38% {clip: rect(0, 133px, 100px, 0);}
+    48% {clip: rect(0, 200px, 100px, 0);}
+    52% {clip: rect(0, 200px, 100px, 0);}
+    62% {clip: rect(0, 200px, 100px, 66px);}
+    90% {clip: rect(0, 200px, 100px, 133px);}
+    100% {clip: rect(0, 200px, 100px, 200px);}}
+
+.pulse:after {
+  content: '';
+  display: block;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 200px 100px" enable-background="new 0 0 200px 100px" xml:space="preserve"><polyline fill="none" stroke-width="3px" stroke="blue" points="2.4,58.7 70.8,58.7 76.1,46.2 81.1,58.7 89.9,58.7 93.8,66.5 102.8,22.7 110.6,78.7 115.3,58.7 126.4,58.7 134.4,54.7 142.4,58.7 197.8,58.7 "/></svg>') 0 0 no-repeat;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  -webkit-animation: 2s pulse infinite linear;
+          animation: 2s pulse infinite linear;
+}
+
+
+.dfmp-details, .dfmp-hd{
+    background-color: white;
+    background-size: contain;
+    display: block;
+    position:absolute;
+    height: 50px;
+    width: 50px;
+    bottom: 10px;
+    z-index: 10;
+    opacity: 0;
+    -webkit-transition: opacity 1s;
+    -o-transition: opacity 1s;
+    transition: opacity 1s;}
+.dfmp-details{
+    right: 10px;
+    background-image: url('../img/gallery-dtls.png');
+}
+.dfmp-hd{
+    right: 70px;
+    background-image: url('../img/gallery-dwnld.png');
+}

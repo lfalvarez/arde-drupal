@@ -1,0 +1,59 @@
+<?php
+/**
+ * @file
+ * Install, update, and uninstall functions for the dfmp_user module.
+ */
+
+/**
+ * Implements hook_schema().
+ *
+ */
+function dfmp_user_schema() {
+  $schema = array();
+
+  $schema['dfmp_user_request_promotion'] = array(
+    'description' => 'The base table for request promotion.',
+    'fields' => array(
+      'pid' => array(
+        'description' => 'Promotion id.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'uid' => array(
+        'description' => 'User id',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'name_permission' => array(
+        'description' => 'Name permission',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'territory' => array(
+        'description' => 'Name territory',
+        'type' => 'varchar',
+        'length' => 10,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+    ),
+    'primary key' => array('pid'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Add table {dfmp_user_request_promotion}
+ */
+function dfmp_user_update_7005(&$sandbox) {
+  // Get schema definition for this module
+  $schema = dfmp_user_schema();
+  // Create a selected table from the schema definition
+  db_create_table('dfmp_user_request_promotion', $schema['dfmp_user_request_promotion']);
+  $sandbox['#finished'] = TRUE;
+}

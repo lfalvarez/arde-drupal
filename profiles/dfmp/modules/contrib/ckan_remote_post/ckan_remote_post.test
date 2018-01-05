@@ -1,0 +1,76 @@
+<?php
+
+class SimpletestUnitTestExampleTestCase extends DrupalUnitTestCase {
+  public static function getInfo() {
+	// Note: getInfo() strings should not be translated.
+	return array(
+	  'name' => 'Simpletest Example unit tests',
+	  'description' => 'Test that simpletest_example_empty_mysql_date works properly.',
+	  'group' => 'Examples',
+	);
+
+  }
+
+  function testEmptyMySQLDate() {
+
+	$result = simpletest_example_empty_mysql_date(NULL);
+	// Note: Test output messages should not be translated.
+	$message = 'A NULL value should return TRUE.';
+	$this->assertTrue($result, $message);
+
+	$result = simpletest_example_empty_mysql_date('');
+	$message = 'An empty string should return TRUE.';
+	$this->assertTrue($result, $message);
+
+	$result = simpletest_example_empty_mysql_date('0000-00-00');
+	$message = 'An "empty" MySQL DATE should return TRUE.';
+	$this->assertTrue($result, $message);
+
+	$result = simpletest_example_empty_mysql_date(date('Y-m-d'));
+	$message = 'A valid date should return FALSE.';
+	$this->assertFalse($result, $message);
+
+  }
+}
+
+/**
+ * Tests the functionality of the Simpletest example content type.
+ */
+class SimpletestExampleTestCase extends DrupalWebTestCase {
+  protected $privileged_user;
+
+  public static function getInfo() {
+	// Note: getInfo() strings are not translated with t().
+	return array(
+	  'name' => 'Simpletest Example',
+	  'description' => 'Ensure that the simpletest_example content type provided functions properly.',
+	  'group' => 'Examples',
+	);
+  }
+
+  public function setUp() {
+	// Enable any modules required for the test. This should be an array of
+	// module names.
+	parent::setUp(array('simpletest_example'));
+	// Create and log in our privileged user.
+	$this->privileged_user = $this->drupalCreateUser(array(
+	  'create simpletest_example content',
+	  'extra special edit any simpletest_example',
+	));
+	$this->drupalLogin($this->privileged_user);
+  }
+
+  /**
+   * Tests creation of a Simpletest example node.
+   */
+  public function testSimpleTestExampleCreate() {
+	// Create node to edit.
+	$edit = array();
+	$edit['title'] = $this->randomName(8);
+	$edit["body[und][0][value]"] = $this->randomName(16);
+	$this->drupalPost('node/add/simpletest-example', $edit, t('Save'));
+	$this->assertText(t('Simpletest Example Node Type @title has been created.', array('@title' => $edit['title'])));
+  }
+}
+
+?>

@@ -1,0 +1,45 @@
+<?php
+/**
+ * @file
+ */
+
+/**
+ * Implements hook_install().
+ */
+function dfmp_install() {
+  variable_set('admin_theme', 'seven');
+  theme_enable(array('dfmp'));
+  variable_set('theme_default', 'dfmp');
+  variable_set('ckan_admin_key', '5671cfe8-5488-4bd9-b792-af9a48fdce83');
+  variable_set('ckan_url', 'http://web.actgdfmp.links.com.au/data');
+  variable_set('ckan_api_version', 3);
+}
+
+/**
+ * Implements hook_install_tasks().
+ */
+function dfmp_install_tasks($install_state){
+  $tasks = array(
+    'dfmp_setup_cleanup' => array(
+      'display_name' => st('Cleanup'),
+      'display' => FALSE,
+      'type' => 'normal'
+    ),
+  );
+
+  return $tasks;
+}
+
+/**
+ * Cleanup install task.
+ */
+function dfmp_setup_cleanup() {
+  features_revert_module('dfmp_bean');
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function dfmp_uninstall() {
+  // Empty.
+}
