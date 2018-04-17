@@ -115,8 +115,8 @@ function dfmp_footer_default_panels_mini() {
     );
     $pane->configuration = array(
       'admin_title' => '',
-      'title' => 'Community Data Platform',
-      'body' => '<p>CBR Online Precinct is supported by the Community Data Platform, which is an open data public collection of datasets containing video & image records</p>',
+      'title' => 'Colectivo Arde',
+      'body' => '<p>Arde está apoyado por el Fondart</p>',
       'format' => 'full_html',
       'substitute' => TRUE,
     );
